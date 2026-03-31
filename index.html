@@ -13,7 +13,6 @@
             display: flex;
             flex-direction: column;
         }
-        /* 顶部状态栏 */
         .status-bar {
             background: #fff;
             border-bottom: 1px solid #e2e8f0;
@@ -31,13 +30,11 @@
             font-size: 12px;
             font-weight: 500;
         }
-        /* 主体布局 */
         .main-layout {
             display: flex;
             flex: 1;
             overflow: hidden;
         }
-        /* 侧边栏（历史） */
         .sidebar {
             width: 260px;
             background: #fff;
@@ -71,12 +68,32 @@
             background: #e0e7ff;
             border-left: 3px solid #3b82f6;
         }
-        /* 聊天区域 */
         .chat-area {
             flex: 1;
             display: flex;
             flex-direction: column;
             overflow: hidden;
+        }
+        .control-bar {
+            display: flex;
+            gap: 12px;
+            padding: 12px 20px;
+            background: #fff;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .control-bar button {
+            background: #f1f5f9;
+            color: #1e293b;
+            border: none;
+            border-radius: 24px;
+            padding: 8px 16px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        .control-bar button.primary {
+            background: #3b82f6;
+            color: white;
         }
         .messages-container {
             flex: 1;
@@ -118,7 +135,6 @@
             line-height: 1.5;
             white-space: pre-wrap;
         }
-        /* 输入区域 */
         .input-area {
             background: #fff;
             border-top: 1px solid #e2e8f0;
@@ -154,58 +170,6 @@
             background: #94a3b8;
             cursor: not-allowed;
         }
-        .control-bar {
-            display: flex;
-            gap: 12px;
-            padding: 12px 20px;
-            background: #fff;
-            border-bottom: 1px solid #e2e8f0;
-        }
-        .control-bar button {
-            background: #f1f5f9;
-            color: #1e293b;
-        }
-        .control-bar button.primary {
-            background: #3b82f6;
-            color: white;
-        }
-        .settings-btn {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            background: #1e293b;
-            border-radius: 50%;
-            width: 48px;
-            height: 48px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        }
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
-            background: rgba(0,0,0,0.5);
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-        }
-        .modal-content {
-            background: white;
-            border-radius: 16px;
-            width: 400px;
-            padding: 24px;
-        }
-        .modal-content input {
-            width: 100%;
-            padding: 10px;
-            margin: 12px 0;
-            border: 1px solid #cbd5e1;
-            border-radius: 8px;
-        }
     </style>
 </head>
 <body>
@@ -217,7 +181,7 @@
     <div class="sidebar">
         <div class="sidebar-header">历史会话</div>
         <div class="history-list" id="historyList">
-            <!-- 动态加载历史 -->
+            <div class="history-item">会话示例</div>
         </div>
     </div>
     <div class="chat-area">
@@ -228,7 +192,7 @@
             <button id="resetBtn">🔄 重置对话</button>
         </div>
         <div class="messages-container" id="messagesContainer">
-            <!-- 对话消息显示区 -->
+            <!-- 消息列表 -->
         </div>
         <div class="input-area">
             <textarea class="input-box" id="inputBox" rows="2" placeholder="输入你的问题..."></textarea>
@@ -236,35 +200,20 @@
         </div>
     </div>
 </div>
-<div class="settings-btn" id="settingsBtn">⚙️</div>
-
-<div class="modal" id="settingsModal">
-    <div class="modal-content">
-        <h3>API 设置</h3>
-        <label>DeepSeek API Key:</label>
-        <input type="password" id="apiKeyInput" placeholder="sk-...">
-        <label>后端地址 (http://...):</label>
-        <input type="text" id="backendUrlInput" placeholder="https://your-backend.railway.app">
-        <button id="saveSettingsBtn">保存</button>
-        <button id="closeModalBtn">关闭</button>
-    </div>
-</div>
 
 <script>
+    // 固定后端地址（无需再手动配置）
+    const BACKEND_URL = 'https://dual-ai-backend-production.up.railway.app';
+
     // 全局状态
     let currentSessionId = null;
-    let messages = [];          // 当前会话消息
-    let isDiscussing = false;   // 是否正在自动循环
-    let round = 0;              // 当前轮次
+    let messages = [];
+    let isDiscussing = false;
+    let round = 0;
     let maxRounds = 10;
     let pauseRequested = false;
     let stopRequested = false;
 
-    // 获取保存的配置
-    let apiKey = localStorage.getItem('deepseek_api_key') || '';
-    let backendUrl = localStorage.getItem('backend_url') || '';
-
-    // DOM 元素
     const messagesContainer = document.getElementById('messagesContainer');
     const inputBox = document.getElementById('inputBox');
     const sendBtn = document.getElementById('sendBtn');
@@ -273,41 +222,13 @@
     const stopBtn = document.getElementById('stopBtn');
     const resetBtn = document.getElementById('resetBtn');
     const statusText = document.getElementById('statusText');
-    const settingsBtn = document.getElementById('settingsBtn');
-    const settingsModal = document.getElementById('settingsModal');
-    const apiKeyInput = document.getElementById('apiKeyInput');
-    const backendUrlInput = document.getElementById('backendUrlInput');
-    const saveSettingsBtn = document.getElementById('saveSettingsBtn');
-    const closeModalBtn = document.getElementById('closeModalBtn');
 
-    // 辅助函数
     function updateStatus(text) {
         statusText.innerText = text;
     }
 
     function scrollToBottom() {
         messagesContainer.scrollTop = messagesContainer.scrollHeight;
-    }
-
-    // 渲染消息
-    function renderMessages() {
-        messagesContainer.innerHTML = '';
-        messages.forEach(msg => {
-            const div = document.createElement('div');
-            div.className = `message ${msg.role}`;
-            const roleName = {
-                'user': '👤 我',
-                'builder': '🏗️ 构建者 (DeepSeek)',
-                'critic': '🔍 批判者 (DeepSeek)',
-                'system_summary': '📝 总结'
-            }[msg.role] || msg.role;
-            div.innerHTML = `
-                <div class="message-role">${roleName}</div>
-                <div class="bubble message-content">${escapeHtml(msg.content)}</div>
-            `;
-            messagesContainer.appendChild(div);
-        });
-        scrollToBottom();
     }
 
     function escapeHtml(text) {
@@ -319,40 +240,45 @@
         }).replace(/\n/g, '<br>');
     }
 
-    // 添加消息到本地
+    function renderMessages() {
+        messagesContainer.innerHTML = '';
+        messages.forEach(msg => {
+            const div = document.createElement('div');
+            div.className = `message ${msg.role}`;
+            let roleName = '';
+            if (msg.role === 'user') roleName = '👤 我';
+            else if (msg.role === 'builder') roleName = '🏗️ 构建者';
+            else if (msg.role === 'critic') roleName = '🔍 批判者';
+            else if (msg.role === 'system_summary') roleName = '📝 总结';
+            else roleName = msg.role;
+            div.innerHTML = `
+                <div class="message-role">${roleName}</div>
+                <div class="bubble message-content">${escapeHtml(msg.content)}</div>
+            `;
+            messagesContainer.appendChild(div);
+        });
+        scrollToBottom();
+    }
+
     function addMessage(role, content, roundNum = null) {
         messages.push({ role, content, round: roundNum });
         renderMessages();
     }
 
-    // 调用后端 API（需要后端服务）
     async function callAPI(endpoint, data) {
-        if (!backendUrl) throw new Error('请先设置后端地址');
-        const url = `${backendUrl}${endpoint}`;
-        const headers = {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
-        };
+        const url = `${BACKEND_URL}${endpoint}`;
         const response = await fetch(url, {
             method: 'POST',
-            headers,
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
         });
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         return await response.json();
     }
 
-    // 开始新讨论
     async function startDiscussion(question) {
-        if (!apiKey) {
-            alert('请先在设置中填写 DeepSeek API Key');
-            return;
-        }
-        if (!backendUrl) {
-            alert('请先在设置中填写后端地址');
-            return;
-        }
-        // 清除旧状态
+        if (!question) return;
+        // 清空旧状态
         messages = [];
         addMessage('user', question);
         isDiscussing = true;
@@ -360,47 +286,58 @@
         stopRequested = false;
         round = 0;
         updateStatus('第1轮讨论中...');
-        // 调用后端开始循环
+        pauseBtn.disabled = false;
+        resumeBtn.disabled = true;
+        stopBtn.disabled = false;
+        sendBtn.disabled = true;
         try {
-            // 这里需要后端提供 /api/discussion/start 接口
-            // 我们暂时用前端模拟调用，但实际需要后端支持
-            // 由于我们还没有部署后端，这里先模拟一个提示
-            alert('后端尚未部署，请先完成 Railway 后端部署。\n部署后请将后端地址填入设置。');
-            isDiscussing = false;
+            // 调用后端 /api/start，注意不再传递 apiKey
+            const result = await callAPI('/api/start', {
+                question: question,
+                maxRounds: maxRounds
+            });
+            if (result.history) {
+                // 将后端返回的历史消息添加到前端（跳过第一条用户消息，因为已经添加）
+                for (let i = 1; i < result.history.length; i++) {
+                    const msg = result.history[i];
+                    addMessage(msg.role, msg.content);
+                }
+                updateStatus('讨论结束');
+                // 如果讨论结束，自动生成总结
+                if (result.finished) {
+                    stopDiscussionAndSummarize();
+                }
+            }
         } catch (err) {
             console.error(err);
-            alert('启动讨论失败：' + err.message);
+            addMessage('system_summary', `错误: ${err.message}`);
+            updateStatus('出错');
+        } finally {
             isDiscussing = false;
+            pauseBtn.disabled = true;
+            resumeBtn.disabled = true;
+            stopBtn.disabled = true;
+            sendBtn.disabled = false;
         }
     }
 
-    // 暂停
-    function pauseDiscussion() {
-        if (!isDiscussing) return;
-        pauseRequested = true;
-        updateStatus('已暂停');
-        isDiscussing = false;
-    }
-
-    // 继续
-    function resumeDiscussion() {
-        if (pauseRequested) {
-            pauseRequested = false;
-            isDiscussing = true;
-            updateStatus('继续讨论...');
-            // 这里需要重新发起一轮请求
-        }
-    }
-
-    // 停止并生成总结
-    function stopAndSummarize() {
-        stopRequested = true;
-        isDiscussing = false;
+    async function stopDiscussionAndSummarize() {
+        if (messages.length === 0) return;
         updateStatus('正在生成总结...');
-        // 调用后端总结接口
+        try {
+            // 使用完整的消息历史（不包含总结本身）
+            const historyForSummary = messages.filter(m => m.role !== 'system_summary');
+            const result = await callAPI('/api/summarize', { history: historyForSummary });
+            if (result.summary) {
+                addMessage('system_summary', result.summary);
+            }
+        } catch (err) {
+            addMessage('system_summary', `总结失败: ${err.message}`);
+        } finally {
+            updateStatus('就绪');
+        }
     }
 
-    // 重置对话
     function resetDiscussion() {
         messages = [];
         renderMessages();
@@ -409,43 +346,47 @@
         stopRequested = false;
         round = 0;
         updateStatus('就绪');
+        pauseBtn.disabled = true;
+        resumeBtn.disabled = true;
+        stopBtn.disabled = true;
+        sendBtn.disabled = false;
     }
 
-    // 保存设置
-    function saveSettings() {
-        const newApiKey = apiKeyInput.value.trim();
-        const newBackendUrl = backendUrlInput.value.trim();
-        if (newApiKey) localStorage.setItem('deepseek_api_key', newApiKey);
-        if (newBackendUrl) localStorage.setItem('backend_url', newBackendUrl);
-        apiKey = newApiKey;
-        backendUrl = newBackendUrl;
-        settingsModal.style.display = 'none';
-        alert('设置已保存');
-    }
-
-    // 事件绑定
     sendBtn.onclick = () => {
         const question = inputBox.value.trim();
         if (!question) return;
         inputBox.value = '';
         startDiscussion(question);
     };
-    pauseBtn.onclick = pauseDiscussion;
-    resumeBtn.onclick = resumeDiscussion;
-    stopBtn.onclick = stopAndSummarize;
-    resetBtn.onclick = resetDiscussion;
-    settingsBtn.onclick = () => {
-        apiKeyInput.value = apiKey;
-        backendUrlInput.value = backendUrl;
-        settingsModal.style.display = 'flex';
+    pauseBtn.onclick = () => {
+        if (!isDiscussing) return;
+        pauseRequested = true;
+        updateStatus('已暂停');
+        isDiscussing = false;
+        pauseBtn.disabled = true;
+        resumeBtn.disabled = false;
     };
-    saveSettingsBtn.onclick = saveSettings;
-    closeModalBtn.onclick = () => settingsModal.style.display = 'none';
-    window.onclick = (e) => { if (e.target === settingsModal) settingsModal.style.display = 'none'; };
-
-    // 初始加载
-    if (apiKey) apiKeyInput.value = apiKey;
-    if (backendUrl) backendUrlInput.value = backendUrl;
+    resumeBtn.onclick = () => {
+        if (!pauseRequested) return;
+        pauseRequested = false;
+        isDiscussing = true;
+        updateStatus('继续讨论...');
+        pauseBtn.disabled = false;
+        resumeBtn.disabled = true;
+        // 这里需要重新发起一轮请求，但为简化，可以提示用户手动重新发送问题
+        // 由于我们目前没有保存对话状态，先简单提示
+        addMessage('system_summary', '暂不支持继续功能，请重新发送问题。');
+        resetDiscussion();
+    };
+    stopBtn.onclick = () => {
+        if (messages.length === 0) return;
+        stopDiscussionAndSummarize();
+        isDiscussing = false;
+        pauseBtn.disabled = true;
+        resumeBtn.disabled = true;
+        stopBtn.disabled = true;
+    };
+    resetBtn.onclick = resetDiscussion;
 </script>
 </body>
 </html>
