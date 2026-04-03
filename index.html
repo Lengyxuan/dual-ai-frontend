@@ -263,6 +263,7 @@
     function addMessage(role, content, roundNum = null) {
         messages.push({ role, content, round: roundNum });
         renderMessages();
+        saveCurrentSession();
     }
 
     async function callAPI(endpoint, data) {
@@ -350,6 +351,56 @@
         resumeBtn.disabled = true;
         stopBtn.disabled = true;
         sendBtn.disabled = false;
+        currentSessionId = null;
+        renderHistoryList();
+    }
+        // ========== 新增：历史记录持久化 ==========
+    
+    function saveCurrentSession() {
+        if (messages.length === 0) return;
+        const sessionData = {
+            id: currentSessionId || Date.now(),
+            title: messages[0]?.content.substring(0, 30) || '未命名会话',
+            messages: messages,
+            lastUpdated: new Date().toISOString()
+        };
+        if (!currentSessionId) currentSessionId = sessionData.id;
+        let sessions = JSON.parse(localStorage.getItem('dual_ai_sessions') || '[]');
+        const existingIndex = sessions.findIndex(s => s.id === currentSessionId);
+        if (existingIndex !== -1) {
+            sessions[existingIndex] = sessionData;
+        } else {
+            sessions.push(sessionData);
+        }
+        if (sessions.length > 20) sessions = sessions.slice(-20);
+        localStorage.setItem('dual_ai_sessions', JSON.stringify(sessions));
+        renderHistoryList();
+    }
+
+    function loadSession(sessionId) {
+        const sessions = JSON.parse(localStorage.getItem('dual_ai_sessions') || '[]');
+        const session = sessions.find(s => s.id === sessionId);
+        if (session) {
+            messages = session.messages;
+            currentSessionId = session.id;
+            renderMessages();
+            updateStatus('已加载历史会话');
+        }
+    }
+
+    function renderHistoryList() {
+        const historyList = document.getElementById('historyList');
+        if (!historyList) return;
+        const sessions = JSON.parse(localStorage.getItem('dual_ai_sessions') || '[]');
+        historyList.innerHTML = '';
+        sessions.slice().reverse().forEach(session => {
+            const div = document.createElement('div');
+            div.className = 'history-item';
+            if (session.id === currentSessionId) div.classList.add('active');
+            div.innerHTML = `<strong>${escapeHtml(session.title)}</strong><br><small>${new Date(session.lastUpdated).toLocaleString()}</small>`;
+            div.onclick = () => loadSession(session.id);
+            historyList.appendChild(div);
+        });
     }
 
     sendBtn.onclick = () => {
@@ -387,6 +438,11 @@
         stopBtn.disabled = true;
     };
     resetBtn.onclick = resetDiscussion;
+    renderHistoryList();
+    const sessions = JSON.parse(localStorage.getItem('dual_ai_sessions') || '[]');
+    if (sessions.length > 0) {
+        loadSession(sessions[sessions.length - 1].id);
+    }
 </script>
 </body>
 </html>
