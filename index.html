@@ -13,7 +13,6 @@
             display: flex;
             flex-direction: column;
         }
-        /* 自定义滚动条 */
         ::-webkit-scrollbar {
             width: 6px;
             height: 6px;
@@ -178,7 +177,7 @@
             transition: all 0.2s;
             box-shadow: 0 1px 1px rgba(0,0,0,0.02);
         }
-        .control-bar button:hover {
+        .control-bar button:hover:not(:disabled) {
             background: #f1f5f9;
             border-color: #cbd5e1;
             transform: translateY(-1px);
@@ -226,7 +225,6 @@
             padding: 12px 18px;
             box-shadow: 0 2px 5px rgba(0,0,0,0.05);
         }
-        /* Builder 专属颜色 — 柔和薄荷/浅蓝 */
         .message.builder .bubble {
             background: #e6f7f0;
             color: #1a3c34;
@@ -235,7 +233,6 @@
             box-shadow: 0 2px 6px rgba(0,0,0,0.04);
             border: 1px solid #c0e3d6;
         }
-        /* Critic 专属颜色 — 柔和暖杏/淡橘 */
         .message.critic .bubble {
             background: #fff3e8;
             color: #4a2e1e;
@@ -403,7 +400,6 @@
             vertical-align: middle;
         }
         @keyframes spin { to { transform: rotate(360deg); } }
-        /* 系统消息特殊样式 */
         .message.system_summary .bubble {
             background: #f1f5f9;
             color: #475569;
@@ -432,6 +428,7 @@
     <div class="chat-area">
         <div class="control-bar">
             <button id="stopBtn" disabled>⏹️ 终止辩论</button>
+            <button id="continueBtn" disabled>▶️ 继续讨论</button>
             <button id="newChatBtn">➕ 新建对话</button>
             <button id="resetBtn">🗑️ 清空对话</button>
             <div class="round-badge" id="roundInfo">⚙️ 最大轮数: 10</div>
@@ -491,17 +488,21 @@
     let MAX_ROUNDS = 10;
     
     // 全局状态
-    let fullHistory = [];            // 当前对话的所有消息 { role, content }
-    let currentSessionId = null;     // 当前会话唯一ID
+    let fullHistory = [];
+    let currentSessionId = null;
     let debateActive = false;
     let stopDebateFlag = false;
     let currentRound = 0;
+    
+    // 智能滚动：用户主动滚动时暂时禁止自动滚动到底部
+    let autoScrollEnabled = true;
     
     // DOM 元素
     const messagesContainer = document.getElementById('messagesContainer');
     const inputBox = document.getElementById('inputBox');
     const sendBtn = document.getElementById('sendBtn');
     const stopBtn = document.getElementById('stopBtn');
+    const continueBtn = document.getElementById('continueBtn');
     const resetBtn = document.getElementById('resetBtn');
     const newChatBtn = document.getElementById('newChatBtn');
     const statusText = document.getElementById('statusText');
@@ -518,13 +519,39 @@
     const apiKeyCriticInput = document.getElementById('apiKeyCritic');
     const maxRoundsInput = document.getElementById('maxRoundsInput');
 
-    // ======================= 辅助函数 =======================
+    // ======================= 智能滚动逻辑 =======================
+    function isNearBottom() {
+        const scrollTop = messagesContainer.scrollTop;
+        const scrollHeight = messagesContainer.scrollHeight;
+        const clientHeight = messagesContainer.clientHeight;
+        return scrollHeight - scrollTop - clientHeight < 100;
+    }
+    function handleUserScroll() {
+        // 如果用户向上滚动超过阈值，关闭自动滚动；如果滚动到底部附近，重新开启
+        if (!isNearBottom()) {
+            autoScrollEnabled = false;
+        } else {
+            autoScrollEnabled = true;
+        }
+    }
+    function smartScrollToBottom() {
+        if (autoScrollEnabled) {
+            messagesContainer.scrollTo({ top: messagesContainer.scrollHeight, behavior: 'smooth' });
+        }
+    }
+    // 强制滚动（用于用户主动操作后，如加载历史会话时）
+    function forceScrollToBottom() {
+        messagesContainer.scrollTo({ top: messagesContainer.scrollHeight, behavior: 'auto' });
+    }
+    
+    // 监听滚动事件
+    messagesContainer.addEventListener('scroll', handleUserScroll);
+    
     function updateStatus(text, isLoading = false) {
         statusText.innerText = text;
         if(isLoading) statusText.innerHTML = text + ' <span class="inline-loading"></span>';
         else statusText.innerText = text;
     }
-    function scrollToBottom() { messagesContainer.scrollTop = messagesContainer.scrollHeight; }
     function escapeHtml(text) {
         if(!text) return '';
         return text.replace(/[&<>]/g, function(m) {
@@ -560,13 +587,15 @@
             const el = createMessageElement(msg.role, msg.content);
             messagesContainer.appendChild(el);
         });
-        scrollToBottom();
+        forceScrollToBottom();
+        // 重置自动滚动标志
+        autoScrollEnabled = true;
     }
 
     function appendSingleMessage(role, content, saveToHistory = true) {
         const el = createMessageElement(role, content);
         messagesContainer.appendChild(el);
-        scrollToBottom();
+        smartScrollToBottom();
         if(saveToHistory) {
             fullHistory.push({ role, content });
             saveCurrentSession();
@@ -581,7 +610,7 @@
         div.id = 'typing-placeholder';
         div.innerHTML = `<div class="message-role">${roleHint}</div><div class="typing-indicator">正在输入<span class="inline-loading"></span></div>`;
         messagesContainer.appendChild(div);
-        scrollToBottom();
+        smartScrollToBottom();
         loadingIndicator = div;
     }
     function hideTyping() {
@@ -740,18 +769,23 @@
             appendSingleMessage('system_summary', '⚠️ 请先在设置中填写 Builder 和 Critic 的 API Key', false);
             settingsModal.classList.add('active'); return;
         }
+        // 检查是否有历史内容（至少要有用户消息）
+        if(fullHistory.length === 0) {
+            appendSingleMessage('system_summary', '💡 没有对话内容，请先发送一条消息开始讨论', false);
+            return;
+        }
         debateActive = true; stopDebateFlag = false; currentRound = 0;
         updateUIForDebateStart(); updateStatus('辩论进行中...', true);
         try {
             while(!stopDebateFlag && currentRound < MAX_ROUNDS) {
                 if(stopDebateFlag) break;
                 showTyping('🏗️ 构建者思考中');
-                let builderReply = await invokeBuilder().catch(e => { throw e; });
+                let builderReply = await invokeBuilder();
                 hideTyping();
                 appendSingleMessage('builder', builderReply || "(Builder 未生成内容)", true);
                 if(stopDebateFlag) break;
                 showTyping('🔍 批判者思考中');
-                let criticReply = await invokeCritic().catch(e => { throw e; });
+                let criticReply = await invokeCritic();
                 hideTyping();
                 appendSingleMessage('critic', criticReply || "(Critic 未生成内容)", true);
                 currentRound++;
@@ -759,10 +793,22 @@
                 if(stopDebateFlag) break;
                 await new Promise(r => setTimeout(r, 300));
             }
-            if(stopDebateFlag) { updateStatus('辩论已终止'); appendSingleMessage('system_summary', '⏸️ 用户终止了辩论，你可以继续发言开启新一轮讨论', false); }
-            else if(currentRound >= MAX_ROUNDS) { updateStatus('辩论达到最大轮数'); appendSingleMessage('system_summary', `🏁 已达到最大辩论轮数 (${MAX_ROUNDS})，你可以继续发言开启新一轮讨论`, false); }
-        } catch(err) { updateStatus(`辩论出错: ${err.message}`); appendSingleMessage('system_summary', `⚠️ 辩论中断: ${err.message}`, false); }
-        finally { debateActive = false; stopDebateFlag = false; updateUIForDebateEnd(); roundInfoSpan.innerText = `⚙️ 最大轮数: ${MAX_ROUNDS}`; }
+            if(stopDebateFlag) {
+                updateStatus('辩论已终止');
+                appendSingleMessage('system_summary', '⏸️ 用户终止了辩论，你可以点击【继续讨论】或发送新消息', false);
+            } else if(currentRound >= MAX_ROUNDS) {
+                updateStatus('辩论达到最大轮数');
+                appendSingleMessage('system_summary', `🏁 已达到最大辩论轮数 (${MAX_ROUNDS})，你可以点击【继续讨论】继续辩论`, false);
+            }
+        } catch(err) {
+            updateStatus(`辩论出错: ${err.message}`);
+            appendSingleMessage('system_summary', `⚠️ 辩论中断: ${err.message}`, false);
+        } finally {
+            debateActive = false;
+            stopDebateFlag = false;
+            updateUIForDebateEnd();
+            roundInfoSpan.innerText = `⚙️ 最大轮数: ${MAX_ROUNDS}`;
+        }
     }
 
     async function sendUserMessageAndStartDebate() {
@@ -775,8 +821,30 @@
     }
 
     function stopDebate() { if(!debateActive) updateStatus('当前没有进行中的辩论'); else { stopDebateFlag = true; updateStatus('正在终止辩论...'); } }
-    function updateUIForDebateStart() { sendBtn.disabled = true; stopBtn.disabled = false; resetBtn.disabled = true; newChatBtn.disabled = true; }
-    function updateUIForDebateEnd() { sendBtn.disabled = false; stopBtn.disabled = true; resetBtn.disabled = false; newChatBtn.disabled = false; if(!debateActive) updateStatus('就绪'); }
+    
+    // 继续讨论：基于当前历史重新开始辩论循环
+    async function continueDebate() {
+        if(debateActive) { updateStatus('辩论已在运行中'); return; }
+        if(fullHistory.length === 0) { updateStatus('没有对话历史，请先发送消息'); return; }
+        await runDebateCycle();
+    }
+
+    function updateUIForDebateStart() { 
+        sendBtn.disabled = true; 
+        stopBtn.disabled = false; 
+        continueBtn.disabled = true;
+        resetBtn.disabled = true; 
+        newChatBtn.disabled = true; 
+    }
+    function updateUIForDebateEnd() { 
+        sendBtn.disabled = false; 
+        stopBtn.disabled = true; 
+        // 只有在有历史且未在辩论中时，继续按钮才可用
+        continueBtn.disabled = (fullHistory.length === 0) || debateActive;
+        resetBtn.disabled = false; 
+        newChatBtn.disabled = false; 
+        if(!debateActive) updateStatus('就绪'); 
+    }
 
     // 设置相关
     function saveSettings() {
@@ -787,6 +855,8 @@
         roundInfoSpan.innerText = `⚙️ 最大轮数: ${MAX_ROUNDS}`;
         localStorage.setItem('triple_ai_settings_v2', JSON.stringify({ baseUrl:API_BASE_URL, model:MODEL_NAME, apiKeys:API_KEYS, maxRounds:MAX_ROUNDS }));
         updateStatus('设置已保存');
+        // 更新按钮状态（继续按钮依赖API keys有效性）
+        updateUIForDebateEnd();
     }
     function loadSettings() {
         const saved = localStorage.getItem('triple_ai_settings_v2');
@@ -812,6 +882,7 @@
     // 事件绑定
     sendBtn.onclick = sendUserMessageAndStartDebate;
     stopBtn.onclick = stopDebate;
+    continueBtn.onclick = continueDebate;
     resetBtn.onclick = resetConversation;
     newChatBtn.onclick = newConversation;
     settingsBtn.onclick = () => settingsModal.classList.add('active');
@@ -821,12 +892,52 @@
     settingsModal.onclick = (e) => { if(e.target === settingsModal) settingsModal.classList.remove('active'); };
     inputBox.addEventListener('keydown', (e) => { if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendUserMessageAndStartDebate(); } });
     
+    // 监听 fullHistory 变化以更新继续按钮状态（在 appendSingleMessage 中已调用 saveCurrentSession，但需要同步UI）
+    // 通过代理或直接修改 updateUIForDebateEnd 调用时机，在每次历史变更后调用
+    const origAppend = appendSingleMessage;
+    window.appendSingleMessage = function(role, content, save) {
+        origAppend(role, content, save);
+        updateUIForDebateEnd();
+    };
+    // 重写以确保每次fullHistory变化后更新按钮状态
+    function syncContinueButton() {
+        continueBtn.disabled = (fullHistory.length === 0) || debateActive;
+    }
+    // 覆盖原有的appendSingleMessage逻辑
+    appendSingleMessage = function(role, content, saveToHistory = true) {
+        const el = createMessageElement(role, content);
+        messagesContainer.appendChild(el);
+        smartScrollToBottom();
+        if(saveToHistory) {
+            fullHistory.push({ role, content });
+            saveCurrentSession();
+        }
+        syncContinueButton();
+    };
+    // 同样修改 reset 和 load 中的调用
+    const origRender = renderFullConversation;
+    renderFullConversation = function() {
+        messagesContainer.innerHTML = '';
+        if(fullHistory.length === 0) {
+            messagesContainer.innerHTML = '<div style="text-align:center; color:#94a3b8; padding:40px;">✨ 发送消息，Builder 和 Critic 将自动展开讨论</div>';
+        } else {
+            fullHistory.forEach(msg => {
+                const el = createMessageElement(msg.role, msg.content);
+                messagesContainer.appendChild(el);
+            });
+        }
+        forceScrollToBottom();
+        autoScrollEnabled = true;
+        syncContinueButton();
+    };
+    
     // 初始化
     loadSettings();
     const sessions = JSON.parse(localStorage.getItem('triple_ai_sessions_v2') || '[]');
     if(sessions.length > 0) loadSession(sessions[0].id);
     else resetConversation();
     updateUIForDebateEnd();
+    syncContinueButton();
 </script>
 </body>
 </html>
