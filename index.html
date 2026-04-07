@@ -303,6 +303,7 @@
     <div class="chat-area">
         <div class="control-bar">
             <button id="stopBtn" disabled>🛑 终止本轮辩论</button>
+            <button id="newChatBtn">➕ 新建对话</button>
             <button id="resetBtn">🗑️ 清空对话</button>
         </div>
         <div class="messages-container" id="messagesContainer">
@@ -358,7 +359,7 @@
     let fullHistory = [];            // 存储所有 user/builder/critic 消息（不含总结）
     let currentSessionId = null;     // 当前辩论 sessionId（用于终止）
     let isDiscussing = false;        // 是否正在辩论中
-    let maxRounds = 10;              // 每轮最大辩论回合数（可调）
+    let maxRounds = 10;              // 每轮最大辩论回合数
 
     // DOM 元素
     const messagesContainer = document.getElementById('messagesContainer');
@@ -366,6 +367,7 @@
     const sendBtn = document.getElementById('sendBtn');
     const stopBtn = document.getElementById('stopBtn');
     const resetBtn = document.getElementById('resetBtn');
+    const newChatBtn = document.getElementById('newChatBtn');
     const statusText = document.getElementById('statusText');
     const settingsModal = document.getElementById('settingsModal');
     const settingsBtn = document.getElementById('settingsBtn');
@@ -493,12 +495,18 @@
         isDiscussing = true;
         updateUIForDebateStart();
 
-        // 如果是全新对话，清空历史；否则保留原有历史，但需要确保界面已包含旧内容
-        if (!previousHistory) {
+        // 关键修复：如果是继续对话（previousHistory存在），先清空UI并渲染旧历史，避免重复显示
+        if (previousHistory) {
+            // 使用传入的历史（不含当前新问题）重新渲染界面
+            fullHistory = [...previousHistory]; // 临时恢复旧历史
+            renderFullConversation();            // 显示旧对话
+        } else {
+            // 全新对话：清空历史和界面
             fullHistory = [];
             clearMessagesUI();
         }
-        // 添加用户消息到界面和历史
+
+        // 添加用户消息到界面和历史（注意：此时 fullHistory 已包含旧历史或为空）
         appendMessageToUI('user', question);
 
         const payload = {
@@ -544,6 +552,7 @@
             // 无历史，当作首次提问
             await startDiscussion(newQuestion, null);
         } else {
+            // 传递当前 fullHistory（不含即将添加的新问题）
             await startDiscussion(newQuestion, fullHistory);
         }
         inputBox.value = '';
@@ -570,7 +579,7 @@
         }
     }
 
-    // 重置对话（清空历史，清空界面）
+    // 重置对话（清空历史，清空界面）—— 不清除存储中的其他会话
     function resetConversation() {
         if (isDiscussing) {
             updateStatus('请先终止当前辩论再清空');
@@ -580,8 +589,22 @@
         currentSessionId = null;
         clearMessagesUI();
         updateStatus('对话已清空');
-        autoSave(); // 保存空状态（实际会删除当前会话存储？我们这里不清除存储，只是清空界面）
-        renderHistoryList(); // 刷新侧边栏高亮
+        // 不自动保存空历史，但如果有旧的 session 存储，这里不删除，只是清空当前显示
+        // 刷新侧边栏高亮（取消激活状态）
+        renderHistoryList();
+    }
+
+    // 新建对话：完全重置，类似于重置但更明确
+    function newConversation() {
+        if (isDiscussing) {
+            updateStatus('请先终止当前辩论再新建对话');
+            return;
+        }
+        fullHistory = [];
+        currentSessionId = null;
+        clearMessagesUI();
+        updateStatus('已创建新对话');
+        renderHistoryList(); // 取消侧边栏激活状态
     }
 
     // ======================= UI状态控制 =======================
@@ -589,6 +612,7 @@
         sendBtn.disabled = true;
         stopBtn.disabled = false;
         resetBtn.disabled = true;
+        newChatBtn.disabled = true;
         updateStatus('辩论进行中...');
     }
 
@@ -596,6 +620,7 @@
         sendBtn.disabled = false;
         stopBtn.disabled = true;
         resetBtn.disabled = false;
+        newChatBtn.disabled = false;
         if (!isDiscussing) updateStatus('就绪');
     }
 
@@ -689,7 +714,6 @@
         const newSessions = sessions.filter(s => s.id !== sessionId);
         localStorage.setItem('triple_ai_sessions', JSON.stringify(newSessions));
         
-        // 如果删除的是当前正在查看的会话
         if (currentSessionId === sessionId) {
             fullHistory = [];
             currentSessionId = null;
@@ -697,14 +721,17 @@
             updateStatus('会话已删除');
         }
         
-        renderHistoryList();  // 刷新侧边栏
+        renderHistoryList();
         if (newSessions.length === 0) {
-            // 无会话时显示空状态
             document.getElementById('historyList').innerHTML = '<div class="history-item">暂无历史</div>';
         }
     }
 
     function loadSessionFromLocal(sessionId) {
+        if (isDiscussing) {
+            updateStatus('请先终止当前辩论再加载会话');
+            return;
+        }
         const sessions = JSON.parse(localStorage.getItem('triple_ai_sessions') || '[]');
         const session = sessions.find(s => s.id === sessionId);
         if (session) {
@@ -729,7 +756,6 @@
             div.className = 'history-item';
             if (session.id === currentSessionId) div.classList.add('active');
             
-            // 内容区域（点击加载会话）
             const contentDiv = document.createElement('div');
             contentDiv.style.cursor = 'pointer';
             contentDiv.style.paddingRight = '30px';
@@ -743,7 +769,6 @@
             };
             div.appendChild(contentDiv);
             
-            // 删除按钮
             const delBtn = document.createElement('button');
             delBtn.innerHTML = '🗑️';
             delBtn.className = 'delete-session';
@@ -760,12 +785,10 @@
         });
     }
 
-    // 自动保存（每次渲染后调用）
     function autoSave() {
         if (fullHistory.length > 0) {
             saveCurrentSessionToLocal();
         } else {
-            // 如果历史为空，可以选择删除当前会话的存储记录
             if (currentSessionId) {
                 let sessions = JSON.parse(localStorage.getItem('triple_ai_sessions') || '[]');
                 const filtered = sessions.filter(s => s.id !== currentSessionId);
@@ -775,10 +798,6 @@
             }
         }
     }
-
-    // 覆盖 appendMessageToUI 的保存逻辑（已在内部调用 autoSave，但 autoSave 依赖 fullHistory 变更）
-    // 由于 appendMessageToUI 修改了 fullHistory，之后会调用 autoSave，所以没问题。
-    // 注意 renderFullConversation 内部调用了 autoSave。
 
     // ======================= 事件绑定 =======================
     sendBtn.onclick = () => {
@@ -808,6 +827,10 @@
         resetConversation();
     };
 
+    newChatBtn.onclick = () => {
+        newConversation();
+    };
+
     settingsBtn.onclick = () => {
         backendUrlInput.value = BACKEND_URL;
         apiKeyBuilderInput.value = API_KEYS.builder || '';
@@ -828,12 +851,11 @@
     // 初始化
     loadSettings();
     renderHistoryList();
-    // 如果有存储的历史，默认加载最新的一个（可选）
     const sessions = JSON.parse(localStorage.getItem('triple_ai_sessions') || '[]');
     if (sessions.length > 0) {
         loadSessionFromLocal(sessions[sessions.length - 1].id);
     } else {
-        resetConversation();
+        newConversation();
     }
     updateUIForDebateEnd();
 </script>
