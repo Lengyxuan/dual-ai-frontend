@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>双AI智囊团</title>
+    <title>三AI智囊团 (Builder + Critic + Observer)</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -22,6 +22,12 @@
             display: flex;
             align-items: center;
             gap: 12px;
+            justify-content: space-between;
+        }
+        .status-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
         }
         .status-badge {
             background: #e2e8f0;
@@ -29,6 +35,17 @@
             border-radius: 20px;
             font-size: 12px;
             font-weight: 500;
+        }
+        .settings-btn {
+            background: #f1f5f9;
+            border: none;
+            border-radius: 20px;
+            padding: 6px 14px;
+            cursor: pointer;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
         }
         .main-layout {
             display: flex;
@@ -112,18 +129,18 @@
         .message.user {
             align-self: flex-end;
         }
-        .message.builder, .message.critic {
-            background: #fff;
-            border-radius: 12px;
-            padding: 12px 16px;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-            border: 1px solid #e2e8f0;
-        }
         .message.user .bubble {
             background: #3b82f6;
             color: white;
             border-radius: 18px;
             padding: 10px 16px;
+        }
+        .message.builder, .message.critic, .message.system_summary {
+            background: #fff;
+            border-radius: 12px;
+            padding: 12px 16px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            border: 1px solid #e2e8f0;
         }
         .message-role {
             font-size: 12px;
@@ -170,12 +187,84 @@
             background: #94a3b8;
             cursor: not-allowed;
         }
+
+        /* 模态框样式 */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal.active {
+            display: flex;
+        }
+        .modal-content {
+            background: #fff;
+            border-radius: 20px;
+            width: 500px;
+            max-width: 90%;
+            padding: 24px;
+            box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
+        }
+        .modal-content h3 {
+            margin-bottom: 20px;
+            font-size: 20px;
+        }
+        .form-group {
+            margin-bottom: 16px;
+        }
+        .form-group label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 6px;
+            color: #1e293b;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #cbd5e1;
+            border-radius: 12px;
+            font-size: 14px;
+        }
+        .form-group input:focus {
+            outline: none;
+            border-color: #3b82f6;
+        }
+        .modal-buttons {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            margin-top: 24px;
+        }
+        .test-btn {
+            background: #e2e8f0;
+            color: #1e293b;
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+        .test-status {
+            font-size: 12px;
+            margin-left: 8px;
+            color: #10b981;
+        }
+        hr {
+            margin: 16px 0;
+            border-color: #e2e8f0;
+        }
     </style>
 </head>
 <body>
 <div class="status-bar">
-    <span>🤖 双AI智囊团</span>
-    <span class="status-badge" id="statusText">就绪</span>
+    <div class="status-left">
+        <span>🤖 三AI智囊团 (Builder + Critic + Observer)</span>
+        <span class="status-badge" id="statusText">就绪</span>
+    </div>
+    <button class="settings-btn" id="settingsBtn">⚙️ 设置</button>
 </div>
 <div class="main-layout">
     <div class="sidebar">
@@ -201,11 +290,40 @@
     </div>
 </div>
 
-<script>
-    // 固定后端地址（无需再手动配置）
-    const BACKEND_URL = 'https://dual-ai-backend-production.up.railway.app';
+<!-- 设置模态框 -->
+<div id="settingsModal" class="modal">
+    <div class="modal-content">
+        <h3>⚙️ 设置</h3>
+        <div class="form-group">
+            <label>后端接口地址</label>
+            <input type="text" id="backendUrlInput" placeholder="https://your-backend.com">
+            <div style="margin-top: 8px;">
+                <button type="button" class="test-btn" id="testBackendBtn">测试连接</button>
+                <span id="testResult" class="test-status"></span>
+            </div>
+        </div>
+        <hr>
+        <div class="form-group">
+            <label>🔑 Builder API Key (api1)</label>
+            <input type="password" id="apiKeyBuilder" placeholder="sk-...">
+        </div>
+        <div class="form-group">
+            <label>🔑 Critic API Key (api2)</label>
+            <input type="password" id="apiKeyCritic" placeholder="sk-...">
+        </div>
+        <div class="form-group">
+            <label>🔑 Observer API Key (api3)</label>
+            <input type="password" id="apiKeyObserver" placeholder="sk-...">
+        </div>
+        <div class="modal-buttons">
+            <button id="closeSettingsBtn">取消</button>
+            <button id="saveSettingsBtn">保存</button>
+        </div>
+    </div>
+</div>
 
-    // 全局状态
+<script>
+    // ---------- 全局变量 ----------
     let currentSessionId = null;
     let messages = [];
     let isDiscussing = false;
@@ -214,6 +332,15 @@
     let pauseRequested = false;
     let stopRequested = false;
 
+    // 可配置项
+    let BACKEND_URL = 'https://dual-ai-backend-production.up.railway.app'; // 默认
+    let API_KEYS = {
+        builder: '',
+        critic: '',
+        observer: ''
+    };
+
+    // DOM 元素
     const messagesContainer = document.getElementById('messagesContainer');
     const inputBox = document.getElementById('inputBox');
     const sendBtn = document.getElementById('sendBtn');
@@ -222,7 +349,18 @@
     const stopBtn = document.getElementById('stopBtn');
     const resetBtn = document.getElementById('resetBtn');
     const statusText = document.getElementById('statusText');
+    const settingsModal = document.getElementById('settingsModal');
+    const settingsBtn = document.getElementById('settingsBtn');
+    const closeSettingsBtn = document.getElementById('closeSettingsBtn');
+    const saveSettingsBtn = document.getElementById('saveSettingsBtn');
+    const testBackendBtn = document.getElementById('testBackendBtn');
+    const testResultSpan = document.getElementById('testResult');
+    const backendUrlInput = document.getElementById('backendUrlInput');
+    const apiKeyBuilderInput = document.getElementById('apiKeyBuilder');
+    const apiKeyCriticInput = document.getElementById('apiKeyCritic');
+    const apiKeyObserverInput = document.getElementById('apiKeyObserver');
 
+    // ---------- 辅助函数 ----------
     function updateStatus(text) {
         statusText.innerText = text;
     }
@@ -266,96 +404,7 @@
         saveCurrentSession();
     }
 
-    async function callAPI(endpoint, data) {
-        const url = `${BACKEND_URL}${endpoint}`;
-        const response = await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
-        });
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        return await response.json();
-    }
-
-    async function startDiscussion(question) {
-        if (!question) return;
-        // 清空旧状态
-        messages = [];
-        addMessage('user', question);
-        isDiscussing = true;
-        pauseRequested = false;
-        stopRequested = false;
-        round = 0;
-        updateStatus('第1轮讨论中...');
-        pauseBtn.disabled = false;
-        resumeBtn.disabled = true;
-        stopBtn.disabled = false;
-        sendBtn.disabled = true;
-        try {
-            // 调用后端 /api/start，注意不再传递 apiKey
-            const result = await callAPI('/api/start', {
-                question: question,
-                maxRounds: maxRounds
-            });
-            if (result.history) {
-                // 将后端返回的历史消息添加到前端（跳过第一条用户消息，因为已经添加）
-                for (let i = 1; i < result.history.length; i++) {
-                    const msg = result.history[i];
-                    addMessage(msg.role, msg.content);
-                }
-                updateStatus('讨论结束');
-                // 如果讨论结束，自动生成总结
-                if (result.finished) {
-                    stopDiscussionAndSummarize();
-                }
-            }
-        } catch (err) {
-            console.error(err);
-            addMessage('system_summary', `错误: ${err.message}`);
-            updateStatus('出错');
-        } finally {
-            isDiscussing = false;
-            pauseBtn.disabled = true;
-            resumeBtn.disabled = true;
-            stopBtn.disabled = true;
-            sendBtn.disabled = false;
-        }
-    }
-
-    async function stopDiscussionAndSummarize() {
-        if (messages.length === 0) return;
-        updateStatus('正在生成总结...');
-        try {
-            // 使用完整的消息历史（不包含总结本身）
-            const historyForSummary = messages.filter(m => m.role !== 'system_summary');
-            const result = await callAPI('/api/summarize', { history: historyForSummary });
-            if (result.summary) {
-                addMessage('system_summary', result.summary);
-            }
-        } catch (err) {
-            addMessage('system_summary', `总结失败: ${err.message}`);
-        } finally {
-            updateStatus('就绪');
-        }
-    }
-
-    function resetDiscussion() {
-        messages = [];
-        renderMessages();
-        isDiscussing = false;
-        pauseRequested = false;
-        stopRequested = false;
-        round = 0;
-        updateStatus('就绪');
-        pauseBtn.disabled = true;
-        resumeBtn.disabled = true;
-        stopBtn.disabled = true;
-        sendBtn.disabled = false;
-        currentSessionId = null;
-        renderHistoryList();
-    }
-        // ========== 新增：历史记录持久化 ==========
-    
+    // 保存当前会话到 localStorage
     function saveCurrentSession() {
         if (messages.length === 0) return;
         const sessionData = {
@@ -403,6 +452,172 @@
         });
     }
 
+    // 保存设置到 localStorage
+    function saveSettings() {
+        const newBackend = backendUrlInput.value.trim();
+        if (newBackend) BACKEND_URL = newBackend;
+        API_KEYS = {
+            builder: apiKeyBuilderInput.value.trim(),
+            critic: apiKeyCriticInput.value.trim(),
+            observer: apiKeyObserverInput.value.trim()
+        };
+        localStorage.setItem('ai_settings', JSON.stringify({
+            backendUrl: BACKEND_URL,
+            apiKeys: API_KEYS
+        }));
+        updateStatus('设置已保存');
+    }
+
+    function loadSettings() {
+        const saved = localStorage.getItem('ai_settings');
+        if (saved) {
+            try {
+                const settings = JSON.parse(saved);
+                if (settings.backendUrl) {
+                    BACKEND_URL = settings.backendUrl;
+                    backendUrlInput.value = BACKEND_URL;
+                }
+                if (settings.apiKeys) {
+                    API_KEYS = settings.apiKeys;
+                    apiKeyBuilderInput.value = API_KEYS.builder || '';
+                    apiKeyCriticInput.value = API_KEYS.critic || '';
+                    apiKeyObserverInput.value = API_KEYS.observer || '';
+                }
+            } catch(e) { console.warn(e); }
+        } else {
+            // 默认值
+            backendUrlInput.value = BACKEND_URL;
+        }
+    }
+
+    // 测试后端连接
+    async function testBackendConnection() {
+        const url = backendUrlInput.value.trim();
+        if (!url) {
+            testResultSpan.innerText = '❌ 请输入后端地址';
+            return;
+        }
+        testResultSpan.innerText = '⏳ 测试中...';
+        try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 10000);
+            const response = await fetch(`${url}/health`, {
+                method: 'GET',
+                signal: controller.signal
+            });
+            clearTimeout(timeoutId);
+            if (response.ok) {
+                const data = await response.json();
+                testResultSpan.innerText = '✅ 连接成功';
+                testResultSpan.style.color = '#10b981';
+            } else {
+                testResultSpan.innerText = `❌ HTTP ${response.status}`;
+                testResultSpan.style.color = '#ef4444';
+            }
+        } catch (err) {
+            testResultSpan.innerText = `❌ 连接失败: ${err.message}`;
+            testResultSpan.style.color = '#ef4444';
+        }
+    }
+
+    // 调用后端 API（发送三个 API Key）
+    async function callAPI(endpoint, data) {
+        const url = `${BACKEND_URL}${endpoint}`;
+        // 将三个 API Key 合并到请求体中
+        const payload = {
+            ...data,
+            apiKeys: API_KEYS   // builder, critic, observer
+        };
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return await response.json();
+    }
+
+    // 开始讨论
+    async function startDiscussion(question) {
+        if (!question) return;
+        // 检查是否配置了必要的 API Key（至少 builder 和 critic）
+        if (!API_KEYS.builder || !API_KEYS.critic) {
+            addMessage('system_summary', '⚠️ 请在设置中配置 Builder 和 Critic 的 API Key');
+            settingsModal.classList.add('active');
+            return;
+        }
+        messages = [];
+        addMessage('user', question);
+        isDiscussing = true;
+        pauseRequested = false;
+        stopRequested = false;
+        round = 0;
+        updateStatus('第1轮讨论中...');
+        pauseBtn.disabled = false;
+        resumeBtn.disabled = true;
+        stopBtn.disabled = false;
+        sendBtn.disabled = true;
+        try {
+            const result = await callAPI('/api/start', {
+                question: question,
+                maxRounds: maxRounds
+            });
+            if (result.history) {
+                for (let i = 1; i < result.history.length; i++) {
+                    const msg = result.history[i];
+                    addMessage(msg.role, msg.content);
+                }
+                updateStatus('讨论结束');
+                if (result.finished) {
+                    stopDiscussionAndSummarize();
+                }
+            }
+        } catch (err) {
+            console.error(err);
+            addMessage('system_summary', `错误: ${err.message}`);
+            updateStatus('出错');
+        } finally {
+            isDiscussing = false;
+            pauseBtn.disabled = true;
+            resumeBtn.disabled = true;
+            stopBtn.disabled = true;
+            sendBtn.disabled = false;
+        }
+    }
+
+    async function stopDiscussionAndSummarize() {
+        if (messages.length === 0) return;
+        updateStatus('正在生成总结...');
+        try {
+            const historyForSummary = messages.filter(m => m.role !== 'system_summary');
+            const result = await callAPI('/api/summarize', { history: historyForSummary });
+            if (result.summary) {
+                addMessage('system_summary', result.summary);
+            }
+        } catch (err) {
+            addMessage('system_summary', `总结失败: ${err.message}`);
+        } finally {
+            updateStatus('就绪');
+        }
+    }
+
+    function resetDiscussion() {
+        messages = [];
+        renderMessages();
+        isDiscussing = false;
+        pauseRequested = false;
+        stopRequested = false;
+        round = 0;
+        updateStatus('就绪');
+        pauseBtn.disabled = true;
+        resumeBtn.disabled = true;
+        stopBtn.disabled = true;
+        sendBtn.disabled = false;
+        currentSessionId = null;
+        renderHistoryList();
+    }
+
+    // ---------- 事件绑定 ----------
     sendBtn.onclick = () => {
         const question = inputBox.value.trim();
         if (!question) return;
@@ -424,8 +639,6 @@
         updateStatus('继续讨论...');
         pauseBtn.disabled = false;
         resumeBtn.disabled = true;
-        // 这里需要重新发起一轮请求，但为简化，可以提示用户手动重新发送问题
-        // 由于我们目前没有保存对话状态，先简单提示
         addMessage('system_summary', '暂不支持继续功能，请重新发送问题。');
         resetDiscussion();
     };
@@ -438,6 +651,31 @@
         stopBtn.disabled = true;
     };
     resetBtn.onclick = resetDiscussion;
+
+    // 设置模态框逻辑
+    settingsBtn.onclick = () => {
+        // 打开前刷新输入框值
+        backendUrlInput.value = BACKEND_URL;
+        apiKeyBuilderInput.value = API_KEYS.builder || '';
+        apiKeyCriticInput.value = API_KEYS.critic || '';
+        apiKeyObserverInput.value = API_KEYS.observer || '';
+        settingsModal.classList.add('active');
+    };
+    closeSettingsBtn.onclick = () => {
+        settingsModal.classList.remove('active');
+    };
+    saveSettingsBtn.onclick = () => {
+        saveSettings();
+        settingsModal.classList.remove('active');
+    };
+    testBackendBtn.onclick = testBackendConnection;
+    // 点击模态框背景关闭
+    settingsModal.onclick = (e) => {
+        if (e.target === settingsModal) settingsModal.classList.remove('active');
+    };
+
+    // 初始化
+    loadSettings();
     renderHistoryList();
     const sessions = JSON.parse(localStorage.getItem('dual_ai_sessions') || '[]');
     if (sessions.length > 0) {
