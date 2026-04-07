@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>AI智囊团 · 双角色辩论引擎</title>
+    <title>三AI智囊团 · 双角色辩论引擎</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -313,7 +313,7 @@
 <body>
 <div class="status-bar">
     <div class="status-left">
-        <span>🤖 AI智囊团 · 双角色辩论引擎 (Builder vs Critic)</span>
+        <span>🤖 三AI智囊团 · 双角色辩论引擎 (Builder vs Critic)</span>
         <span class="status-badge" id="statusText">就绪</span>
     </div>
     <button class="settings-btn" id="settingsBtn">⚙️ 设置</button>
@@ -381,19 +381,16 @@
 
 <script>
     // ======================= 全局配置 =======================
-    let API_BASE_URL = 'https://api.openai.com/v1';    // OpenAI 兼容地址
+    let API_BASE_URL = 'https://api.openai.com/v1';
     let MODEL_NAME = 'gpt-3.5-turbo';
-    let API_KEYS = {
-        builder: '',
-        critic: ''
-    };
-    let MAX_ROUNDS = 10;            // 最大辩论轮数
+    let API_KEYS = { builder: '', critic: '' };
+    let MAX_ROUNDS = 10;
     
     // 全局状态
-    let fullHistory = [];            // 存储 { role, content }  role: user, builder, critic
-    let debateActive = false;        // 辩论循环是否活跃
-    let stopDebateFlag = false;      // 终止标志
-    let currentDebatePromise = null;
+    let fullHistory = [];            // 当前对话的所有消息 { role, content }
+    let currentSessionId = null;     // 当前会话唯一ID
+    let debateActive = false;
+    let stopDebateFlag = false;
     let currentRound = 0;
     
     // DOM 元素
@@ -460,7 +457,6 @@
             messagesContainer.appendChild(el);
         });
         scrollToBottom();
-        autoSaveSession();
     }
 
     function appendSingleMessage(role, content, saveToHistory = true) {
@@ -469,11 +465,10 @@
         scrollToBottom();
         if(saveToHistory) {
             fullHistory.push({ role, content });
-            autoSaveSession();
+            saveCurrentSession(); // 每次有消息更新就保存当前会话
         }
     }
 
-    // 显示/隐藏加载占位
     let loadingIndicator = null;
     function showTyping(roleHint = '🤔 思考中') {
         if(loadingIndicator) loadingIndicator.remove();
@@ -489,7 +484,144 @@
         if(loadingIndicator) { loadingIndicator.remove(); loadingIndicator = null; }
     }
 
-    // ======================= LLM 调用核心 (直接调用API) =======================
+    // ======================= 会话存储 (核心修复) =======================
+    // 保存当前会话到 localStorage (更新或创建)
+    function saveCurrentSession() {
+        if(fullHistory.length === 0) return;
+        // 如果还没有 sessionId，则生成一个
+        if(!currentSessionId) {
+            currentSessionId = 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
+        }
+        const sessions = JSON.parse(localStorage.getItem('triple_ai_sessions_v2') || '[]');
+        const title = fullHistory[0]?.content.substring(0, 28) || '未命名辩论';
+        const existingIndex = sessions.findIndex(s => s.id === currentSessionId);
+        const sessionData = {
+            id: currentSessionId,
+            title: title,
+            history: [...fullHistory],
+            lastUpdated: new Date().toISOString()
+        };
+        if(existingIndex !== -1) {
+            sessions[existingIndex] = sessionData;
+        } else {
+            sessions.unshift(sessionData);
+        }
+        // 限制最多30个会话
+        while(sessions.length > 30) sessions.pop();
+        localStorage.setItem('triple_ai_sessions_v2', JSON.stringify(sessions));
+        renderHistoryList();
+    }
+
+    // 加载指定会话
+    function loadSession(sessionId) {
+        if(debateActive) {
+            updateStatus('请先终止辩论再加载会话');
+            return;
+        }
+        const sessions = JSON.parse(localStorage.getItem('triple_ai_sessions_v2') || '[]');
+        const session = sessions.find(s => s.id === sessionId);
+        if(session) {
+            fullHistory = JSON.parse(JSON.stringify(session.history));
+            currentSessionId = session.id;
+            renderFullConversation();
+            updateStatus(`已加载: ${session.title}`);
+            // 确保UI按钮状态正确
+            if(debateActive) debateActive = false;
+            updateUIForDebateEnd();
+        }
+    }
+
+    // 删除会话
+    function deleteSession(sessionId) {
+        let sessions = JSON.parse(localStorage.getItem('triple_ai_sessions_v2') || '[]');
+        const newSessions = sessions.filter(s => s.id !== sessionId);
+        localStorage.setItem('triple_ai_sessions_v2', JSON.stringify(newSessions));
+        if(currentSessionId === sessionId) {
+            // 删除的是当前会话，清空界面，重置状态
+            fullHistory = [];
+            currentSessionId = null;
+            renderFullConversation();
+            updateStatus('当前会话已删除');
+        }
+        renderHistoryList();
+        if(newSessions.length === 0) {
+            document.getElementById('historyList').innerHTML = '<div class="history-item">暂无历史</div>';
+        }
+    }
+
+    // 新建对话：保存当前会话（如果有内容），然后清空当前，重置sessionId
+    function newConversation() {
+        if(debateActive) {
+            updateStatus('请先终止辩论再新建对话');
+            return;
+        }
+        // 如果当前有内容，先保存
+        if(fullHistory.length > 0 && currentSessionId) {
+            saveCurrentSession();
+        }
+        // 重置所有
+        fullHistory = [];
+        currentSessionId = null;
+        renderFullConversation();
+        updateStatus('已创建新对话');
+        updateUIForDebateEnd();
+        roundInfoSpan.innerText = `⚙️ 最大轮数: ${MAX_ROUNDS}`;
+        // 刷新历史列表，高亮清除
+        renderHistoryList();
+    }
+
+    // 清空当前对话（不保存，直接清空）
+    function resetConversation() {
+        if(debateActive) {
+            stopDebateFlag = true;
+            debateActive = false;
+        }
+        fullHistory = [];
+        currentSessionId = null;
+        renderFullConversation();
+        updateStatus('对话已清空');
+        updateUIForDebateEnd();
+        roundInfoSpan.innerText = `⚙️ 最大轮数: ${MAX_ROUNDS}`;
+        // 从localStorage中删除当前会话（如果有）
+        if(currentSessionId) {
+            let sessions = JSON.parse(localStorage.getItem('triple_ai_sessions_v2') || '[]');
+            sessions = sessions.filter(s => s.id !== currentSessionId);
+            localStorage.setItem('triple_ai_sessions_v2', JSON.stringify(sessions));
+            currentSessionId = null;
+            renderHistoryList();
+        } else {
+            renderHistoryList();
+        }
+    }
+
+    function renderHistoryList() {
+        const historyDiv = document.getElementById('historyList');
+        if(!historyDiv) return;
+        const sessions = JSON.parse(localStorage.getItem('triple_ai_sessions_v2') || '[]');
+        if(sessions.length === 0) {
+            historyDiv.innerHTML = '<div class="history-item">暂无历史</div>';
+            return;
+        }
+        historyDiv.innerHTML = '';
+        sessions.slice().reverse().forEach(session => {
+            const div = document.createElement('div');
+            div.className = 'history-item';
+            if(currentSessionId === session.id) div.classList.add('active');
+            const contentDiv = document.createElement('div');
+            contentDiv.style.cursor = 'pointer';
+            contentDiv.innerHTML = `<div class="history-title">${escapeHtml(session.title)}</div><div class="history-time">${new Date(session.lastUpdated).toLocaleString()}</div>`;
+            contentDiv.onclick = () => loadSession(session.id);
+            div.appendChild(contentDiv);
+            const delBtn = document.createElement('button');
+            delBtn.innerHTML = '🗑️';
+            delBtn.className = 'delete-session';
+            delBtn.onclick = (e) => { e.stopPropagation(); if(confirm('删除会话?')) deleteSession(session.id); };
+            div.appendChild(delBtn);
+            historyDiv.appendChild(div);
+        });
+    }
+
+    // ======================= LLM 调用核心 =======================
     async function callLLM(apiKey, systemPrompt, conversationHistory, roleName = 'assistant') {
         if(!apiKey) throw new Error(`缺少 ${roleName} 的 API Key`);
         const url = `${API_BASE_URL}/chat/completions`;
@@ -532,7 +664,6 @@
         }
     }
 
-    // 构建当前对话上下文 (用于传递给模型，不含系统提示)
     function buildContextForModel() {
         const context = [];
         for(const msg of fullHistory) {
@@ -546,24 +677,20 @@
         return context;
     }
 
-    // 系统提示: 角色隔离
     const BUILDER_SYSTEM = `你是一位资深「构建者」，擅长提出创新、可行、建设性的方案。你的任务是针对当前讨论话题，给出清晰、有深度的观点、解决方案或补充建议。要注重逻辑和实用性，同时保持开放态度。请直接输出你的观点，不要重复之前的对话，不要扮演批判者。`;
     const CRITIC_SYSTEM = `你是一位严谨的「批判者」，擅长发现逻辑漏洞、潜在风险与不足之处。你的任务是对构建者或当前讨论的观点提出尖锐且建设性的质疑、补充反例或风险警告，推动讨论更加完善。请直接输出批判性意见，不要重复对方，保持专业与客观。`;
 
-    // 单次 Builder 发言
     async function invokeBuilder() {
         const context = buildContextForModel();
         if(context.length === 0) throw new Error("无上下文");
         return await callLLM(API_KEYS.builder, BUILDER_SYSTEM, context, 'Builder');
     }
-    // 单次 Critic 发言 (基于最新历史)
     async function invokeCritic() {
         const context = buildContextForModel();
         if(context.length === 0) throw new Error("无上下文");
         return await callLLM(API_KEYS.critic, CRITIC_SYSTEM, context, 'Critic');
     }
 
-    // ======================= 辩论循环引擎 =======================
     async function runDebateCycle() {
         if(debateActive) return;
         if(!API_KEYS.builder || !API_KEYS.critic) {
@@ -571,7 +698,6 @@
             settingsModal.classList.add('active');
             return;
         }
-        if(MAX_ROUNDS <= 0) MAX_ROUNDS = 10;
         debateActive = true;
         stopDebateFlag = false;
         currentRound = 0;
@@ -580,7 +706,7 @@
         
         try {
             while(!stopDebateFlag && currentRound < MAX_ROUNDS) {
-                // Builder 发言
+                // Builder
                 if(stopDebateFlag) break;
                 showTyping('🏗️ 构建者思考中');
                 let builderReply = '';
@@ -594,10 +720,9 @@
                 hideTyping();
                 if(!builderReply) builderReply = "(Builder 未生成内容)";
                 appendSingleMessage('builder', builderReply, true);
-                
                 if(stopDebateFlag) break;
                 
-                // Critic 发言
+                // Critic
                 showTyping('🔍 批判者思考中');
                 let criticReply = '';
                 try {
@@ -614,11 +739,8 @@
                 currentRound++;
                 roundInfoSpan.innerText = `⚙️ 当前轮数: ${currentRound}/${MAX_ROUNDS}`;
                 if(stopDebateFlag) break;
-                
-                // 轮次间隔友好
                 await new Promise(r => setTimeout(r, 300));
             }
-            
             if(stopDebateFlag) {
                 updateStatus('辩论已终止', false);
                 appendSingleMessage('system_summary', '⏸️ 用户终止了辩论，你可以继续发言开启新一轮讨论', false);
@@ -638,7 +760,6 @@
         }
     }
 
-    // 用户发送新消息 (启动辩论)
     async function sendUserMessageAndStartDebate() {
         if(debateActive) {
             updateStatus('辩论进行中，请先点击【终止辩论】再发送新消息');
@@ -647,13 +768,12 @@
         const question = inputBox.value.trim();
         if(!question) return;
         inputBox.value = '';
-        // 添加用户消息
+        // 添加用户消息（自动触发保存会话）
         appendSingleMessage('user', question, true);
-        // 启动辩论循环
+        // 启动辩论
         await runDebateCycle();
     }
 
-    // 终止辩论
     function stopDebate() {
         if(!debateActive) {
             updateStatus('当前没有进行中的辩论');
@@ -663,31 +783,6 @@
         updateStatus('正在终止辩论...');
     }
 
-    // 重置所有 (清空对话)
-    function resetConversation() {
-        if(debateActive) {
-            stopDebateFlag = true;
-            debateActive = false;
-        }
-        fullHistory = [];
-        currentRound = 0;
-        renderFullConversation();
-        updateStatus('对话已清空');
-        updateUIForDebateEnd();
-        roundInfoSpan.innerText = `⚙️ 最大轮数: ${MAX_ROUNDS}`;
-        autoSaveSession();
-    }
-
-    function newConversation() {
-        if(debateActive) {
-            updateStatus('请先终止辩论再新建');
-            return;
-        }
-        resetConversation();
-        updateStatus('新对话已创建');
-    }
-
-    // UI 状态控制
     function updateUIForDebateStart() {
         sendBtn.disabled = true;
         stopBtn.disabled = false;
@@ -702,7 +797,7 @@
         if(!debateActive) updateStatus('就绪');
     }
 
-    // ======================= 设置与本地存储 =======================
+    // ======================= 设置 =======================
     function saveSettings() {
         const newBase = backendUrlInput.value.trim();
         if(newBase) API_BASE_URL = newBase.replace(/\/$/, '');
@@ -715,12 +810,8 @@
         const maxR = parseInt(maxRoundsInput.value, 10);
         if(!isNaN(maxR) && maxR > 0) MAX_ROUNDS = Math.min(maxR, 20);
         roundInfoSpan.innerText = `⚙️ 最大轮数: ${MAX_ROUNDS}`;
-        
         localStorage.setItem('triple_ai_settings_v2', JSON.stringify({
-            baseUrl: API_BASE_URL,
-            model: MODEL_NAME,
-            apiKeys: API_KEYS,
-            maxRounds: MAX_ROUNDS
+            baseUrl: API_BASE_URL, model: MODEL_NAME, apiKeys: API_KEYS, maxRounds: MAX_ROUNDS
         }));
         updateStatus('设置已保存');
     }
@@ -759,21 +850,13 @@
             const testUrl = `${url.replace(/\/$/, '')}/chat/completions`;
             const response = await fetch(testUrl, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${testKey}`
-                },
-                body: JSON.stringify({
-                    model: model,
-                    messages: [{ role: 'user', content: 'Hi' }],
-                    max_tokens: 5
-                })
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${testKey}` },
+                body: JSON.stringify({ model: model, messages: [{ role: 'user', content: 'Hi' }], max_tokens: 5 })
             });
             if(response.ok) {
                 testResultSpan.innerText = '✅ API 连通正常';
                 testResultSpan.style.color = '#10b981';
             } else {
-                const err = await response.text();
                 testResultSpan.innerText = `⚠️ ${response.status}`;
                 testResultSpan.style.color = '#ef4444';
             }
@@ -781,72 +864,6 @@
             testResultSpan.innerText = `❌ 连接失败: ${e.message}`;
             testResultSpan.style.color = '#ef4444';
         }
-    }
-
-    // ======================= 历史会话管理 (沿用原有风格) =======================
-    function autoSaveSession() {
-        if(fullHistory.length === 0) return;
-        const sessionId = `session_${Date.now()}_${fullHistory.length}`;
-        let sessions = JSON.parse(localStorage.getItem('triple_ai_sessions_v2') || '[]');
-        const title = fullHistory[0]?.content.substring(0, 28) || '未命名辩论';
-        const newSession = {
-            id: sessionId,
-            title: title,
-            history: [...fullHistory],
-            lastUpdated: new Date().toISOString()
-        };
-        // 简单去重策略：按最新保存替换当前（避免无限堆积），实际保留最近20条
-        sessions = sessions.filter(s => s.id !== 'current_temp');
-        sessions.unshift(newSession);
-        if(sessions.length > 20) sessions = sessions.slice(0,20);
-        localStorage.setItem('triple_ai_sessions_v2', JSON.stringify(sessions));
-        renderHistoryList();
-    }
-
-    function loadSession(sessionId) {
-        if(debateActive) { updateStatus('请先终止辩论再加载会话'); return; }
-        const sessions = JSON.parse(localStorage.getItem('triple_ai_sessions_v2') || '[]');
-        const session = sessions.find(s => s.id === sessionId);
-        if(session) {
-            fullHistory = session.history;
-            renderFullConversation();
-            updateStatus(`已加载: ${session.title}`);
-        }
-    }
-
-    function deleteSession(sessionId) {
-        let sessions = JSON.parse(localStorage.getItem('triple_ai_sessions_v2') || '[]');
-        sessions = sessions.filter(s => s.id !== sessionId);
-        localStorage.setItem('triple_ai_sessions_v2', JSON.stringify(sessions));
-        if(fullHistory.length === 0) renderHistoryList();
-        else renderHistoryList();
-        if(sessions.length === 0) document.getElementById('historyList').innerHTML = '<div class="history-item">暂无历史</div>';
-    }
-
-    function renderHistoryList() {
-        const historyDiv = document.getElementById('historyList');
-        if(!historyDiv) return;
-        const sessions = JSON.parse(localStorage.getItem('triple_ai_sessions_v2') || '[]');
-        if(sessions.length === 0) {
-            historyDiv.innerHTML = '<div class="history-item">暂无历史</div>';
-            return;
-        }
-        historyDiv.innerHTML = '';
-        sessions.slice(0,15).forEach(session => {
-            const div = document.createElement('div');
-            div.className = 'history-item';
-            const contentDiv = document.createElement('div');
-            contentDiv.style.cursor = 'pointer';
-            contentDiv.innerHTML = `<div class="history-title">${escapeHtml(session.title)}</div><div class="history-time">${new Date(session.lastUpdated).toLocaleString()}</div>`;
-            contentDiv.onclick = () => loadSession(session.id);
-            div.appendChild(contentDiv);
-            const delBtn = document.createElement('button');
-            delBtn.innerHTML = '🗑️';
-            delBtn.className = 'delete-session';
-            delBtn.onclick = (e) => { e.stopPropagation(); if(confirm('删除会话?')) deleteSession(session.id); };
-            div.appendChild(delBtn);
-            historyDiv.appendChild(div);
-        });
     }
 
     // ======================= 事件绑定 =======================
@@ -861,10 +878,16 @@
     settingsModal.onclick = (e) => { if(e.target === settingsModal) settingsModal.classList.remove('active'); };
     inputBox.addEventListener('keydown', (e) => { if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendUserMessageAndStartDebate(); } });
     
-    // 启动
+    // 初始化
     loadSettings();
     renderHistoryList();
-    if(fullHistory.length === 0) resetConversation();
+    // 如果有历史会话，加载最近一个，否则清空
+    const sessions = JSON.parse(localStorage.getItem('triple_ai_sessions_v2') || '[]');
+    if(sessions.length > 0) {
+        loadSession(sessions[0].id);
+    } else {
+        resetConversation();
+    }
     updateUIForDebateEnd();
 </script>
 </body>
