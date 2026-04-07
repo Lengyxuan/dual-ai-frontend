@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>AI智囊团 · 双角色辩论引擎</title>
+    <title>AI智囊团 · 对抗式辩论引擎</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -13,21 +13,10 @@
             display: flex;
             flex-direction: column;
         }
-        ::-webkit-scrollbar {
-            width: 6px;
-            height: 6px;
-        }
-        ::-webkit-scrollbar-track {
-            background: #e2e8f0;
-            border-radius: 10px;
-        }
-        ::-webkit-scrollbar-thumb {
-            background: #94a3b8;
-            border-radius: 10px;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: #64748b;
-        }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #e2e8f0; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #64748b; }
 
         .status-bar {
             background: #ffffffdd;
@@ -42,11 +31,7 @@
             gap: 12px;
             justify-content: space-between;
         }
-        .status-left {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
+        .status-left { display: flex; align-items: center; gap: 12px; }
         .status-badge {
             background: #eef2ff;
             padding: 4px 12px;
@@ -68,15 +53,8 @@
             transition: all 0.2s;
             color: #1e293b;
         }
-        .settings-btn:hover {
-            background: #e2e8f0;
-            transform: translateY(-1px);
-        }
-        .main-layout {
-            display: flex;
-            flex: 1;
-            overflow: hidden;
-        }
+        .settings-btn:hover { background: #e2e8f0; transform: translateY(-1px); }
+        .main-layout { display: flex; flex: 1; overflow: hidden; }
         .sidebar {
             width: 280px;
             background: #fff;
@@ -94,10 +72,7 @@
             color: #0f172a;
             font-size: 15px;
         }
-        .history-list {
-            flex: 1;
-            padding: 12px;
-        }
+        .history-list { flex: 1; padding: 12px; }
         .history-item {
             position: relative;
             background: #ffffff;
@@ -109,27 +84,10 @@
             border: 1px solid #eef2ff;
             box-shadow: 0 1px 2px rgba(0,0,0,0.02);
         }
-        .history-item:hover {
-            background: #f8fafc;
-            border-color: #cbd5e1;
-            transform: translateX(2px);
-        }
-        .history-item.active {
-            background: #eef2ff;
-            border-left: 3px solid #3b82f6;
-            border-color: #3b82f6;
-        }
-        .history-title {
-            font-size: 14px;
-            font-weight: 500;
-            margin-bottom: 4px;
-            word-break: break-word;
-            color: #1e293b;
-        }
-        .history-time {
-            font-size: 11px;
-            color: #64748b;
-        }
+        .history-item:hover { background: #f8fafc; border-color: #cbd5e1; transform: translateX(2px); }
+        .history-item.active { background: #eef2ff; border-left: 3px solid #3b82f6; border-color: #3b82f6; }
+        .history-title { font-size: 14px; font-weight: 500; margin-bottom: 4px; word-break: break-word; color: #1e293b; }
+        .history-time { font-size: 11px; color: #64748b; }
         .delete-session {
             position: absolute;
             right: 8px;
@@ -144,17 +102,8 @@
             border-radius: 20px;
             transition: all 0.2s;
         }
-        .delete-session:hover {
-            background: #fee2e2;
-            color: #ef4444;
-        }
-        .chat-area {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-            background: #f8fafc;
-        }
+        .delete-session:hover { background: #fee2e2; color: #ef4444; }
+        .chat-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: #f8fafc; }
         .control-bar {
             display: flex;
             gap: 12px;
@@ -177,16 +126,8 @@
             transition: all 0.2s;
             box-shadow: 0 1px 1px rgba(0,0,0,0.02);
         }
-        .control-bar button:hover:not(:disabled) {
-            background: #f1f5f9;
-            border-color: #cbd5e1;
-            transform: translateY(-1px);
-        }
-        .control-bar button.primary {
-            background: #3b82f6;
-            color: white;
-            border: none;
-        }
+        .control-bar button:hover:not(:disabled) { background: #f1f5f9; border-color: #cbd5e1; transform: translateY(-1px); }
+        .control-bar button.primary { background: #3b82f6; color: white; border: none; }
         .round-badge {
             background: #eef2ff;
             border-radius: 24px;
@@ -196,28 +137,10 @@
             color: #1e40af;
             margin-left: auto;
         }
-        .messages-container {
-            flex: 1;
-            overflow-y: auto;
-            padding: 24px;
-            display: flex;
-            flex-direction: column;
-            gap: 18px;
-        }
-        .message {
-            display: flex;
-            flex-direction: column;
-            max-width: 82%;
-            align-self: flex-start;
-            animation: fadeInUp 0.2s ease;
-        }
-        @keyframes fadeInUp {
-            from { opacity: 0; transform: translateY(8px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        .message.user {
-            align-self: flex-end;
-        }
+        .messages-container { flex: 1; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 18px; }
+        .message { display: flex; flex-direction: column; max-width: 82%; align-self: flex-start; animation: fadeInUp 0.2s ease; }
+        @keyframes fadeInUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        .message.user { align-self: flex-end; }
         .message.user .bubble {
             background: #3b82f6;
             color: white;
@@ -241,23 +164,11 @@
             box-shadow: 0 2px 6px rgba(0,0,0,0.04);
             border: 1px solid #ffdfc2;
         }
-        .message-role {
-            font-size: 12px;
-            font-weight: 600;
-            margin-bottom: 6px;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
+        .message-role { font-size: 12px; font-weight: 600; margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
         .message.builder .message-role { color: #2c7a5e; }
         .message.critic .message-role { color: #c26b2e; }
         .message.user .message-role { color: #3b82f6; justify-content: flex-end; }
-        .message-content {
-            line-height: 1.55;
-            white-space: pre-wrap;
-            word-break: break-word;
-            font-size: 14px;
-        }
+        .message-content { line-height: 1.55; white-space: pre-wrap; word-break: break-word; font-size: 14px; }
         .typing-indicator {
             background: #ffffffcc;
             backdrop-filter: blur(4px);
@@ -291,10 +202,7 @@
             transition: all 0.2s;
             background: #ffffff;
         }
-        .input-box:focus {
-            border-color: #3b82f6;
-            box-shadow: 0 0 0 3px rgba(59,130,246,0.1);
-        }
+        .input-box:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
         button {
             background: #3b82f6;
             color: white;
@@ -306,15 +214,8 @@
             font-weight: 500;
             transition: all 0.2s;
         }
-        button:hover:not(:disabled) {
-            background: #2563eb;
-            transform: translateY(-1px);
-        }
-        button:disabled {
-            background: #94a3b8;
-            cursor: not-allowed;
-            opacity: 0.7;
-        }
+        button:hover:not(:disabled) { background: #2563eb; transform: translateY(-1px); }
+        button:disabled { background: #94a3b8; cursor: not-allowed; opacity: 0.7; }
         .modal {
             display: none;
             position: fixed;
@@ -326,9 +227,7 @@
             align-items: center;
             z-index: 1000;
         }
-        .modal.active {
-            display: flex;
-        }
+        .modal.active { display: flex; }
         .modal-content {
             background: #ffffff;
             border-radius: 28px;
@@ -337,22 +236,9 @@
             padding: 28px;
             box-shadow: 0 25px 40px -12px rgba(0,0,0,0.2);
         }
-        .modal-content h3 {
-            margin-bottom: 20px;
-            font-size: 22px;
-            font-weight: 600;
-            color: #0f172a;
-        }
-        .form-group {
-            margin-bottom: 18px;
-        }
-        .form-group label {
-            display: block;
-            font-size: 14px;
-            font-weight: 500;
-            margin-bottom: 8px;
-            color: #334155;
-        }
+        .modal-content h3 { margin-bottom: 20px; font-size: 22px; font-weight: 600; color: #0f172a; }
+        .form-group { margin-bottom: 18px; }
+        .form-group label { display: block; font-size: 14px; font-weight: 500; margin-bottom: 8px; color: #334155; }
         .form-group input {
             width: 100%;
             padding: 10px 14px;
@@ -361,33 +247,11 @@
             font-size: 14px;
             transition: 0.2s;
         }
-        .form-group input:focus {
-            outline: none;
-            border-color: #3b82f6;
-            box-shadow: 0 0 0 2px rgba(59,130,246,0.1);
-        }
-        .modal-buttons {
-            display: flex;
-            justify-content: flex-end;
-            gap: 12px;
-            margin-top: 24px;
-        }
-        .test-btn {
-            background: #f1f5f9;
-            color: #1e293b;
-            padding: 6px 14px;
-            font-size: 12px;
-            border-radius: 20px;
-        }
-        .test-status {
-            font-size: 12px;
-            margin-left: 10px;
-            color: #10b981;
-        }
-        hr {
-            margin: 18px 0;
-            border-color: #eef2ff;
-        }
+        .form-group input:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59,130,246,0.1); }
+        .modal-buttons { display: flex; justify-content: flex-end; gap: 12px; margin-top: 24px; }
+        .test-btn { background: #f1f5f9; color: #1e293b; padding: 6px 14px; font-size: 12px; border-radius: 20px; }
+        .test-status { font-size: 12px; margin-left: 10px; color: #10b981; }
+        hr { margin: 18px 0; border-color: #eef2ff; }
         .inline-loading {
             display: inline-block;
             width: 14px;
@@ -413,7 +277,7 @@
 <body>
 <div class="status-bar">
     <div class="status-left">
-        <span>🤖 AI智囊团 · 双角色辩论引擎</span>
+        <span>🤖 AI智囊团 · 对抗式辩论引擎 (Builder vs Critic)</span>
         <span class="status-badge" id="statusText">就绪</span>
     </div>
     <button class="settings-btn" id="settingsBtn">⚙️ 设置</button>
@@ -421,9 +285,7 @@
 <div class="main-layout">
     <div class="sidebar">
         <div class="sidebar-header">📚 历史会话</div>
-        <div class="history-list" id="historyList">
-            <div class="history-item">加载中...</div>
-        </div>
+        <div class="history-list" id="historyList"><div class="history-item">加载中...</div></div>
     </div>
     <div class="chat-area">
         <div class="control-bar">
@@ -434,7 +296,7 @@
             <div class="round-badge" id="roundInfo">⚙️ 最大轮数: 10</div>
         </div>
         <div class="messages-container" id="messagesContainer">
-            <div style="text-align:center; color:#94a3b8; padding:40px;">✨ 发送消息，Builder 和 Critic 将自动展开讨论</div>
+            <div style="text-align:center; color:#94a3b8; padding:40px;">✨ 发送消息，Builder 和 Critic 将针对对方观点展开循环辩论</div>
         </div>
         <div class="input-area">
             <textarea class="input-box" id="inputBox" rows="2" placeholder="输入你的观点或问题... (发送后将触发双角色循环辩论)"></textarea>
@@ -443,40 +305,21 @@
     </div>
 </div>
 
-<!-- 设置模态框 -->
 <div id="settingsModal" class="modal">
     <div class="modal-content">
         <h3>⚙️ API 设置</h3>
         <div class="form-group">
             <label>🌐 API Base URL (OpenAI 兼容)</label>
             <input type="text" id="backendUrlInput" placeholder="https://api.openai.com/v1">
-            <div class="form-group" style="margin-top:8px;">
-                <label>🤖 模型名称</label>
-                <input type="text" id="modelNameInput" placeholder="gpt-3.5-turbo">
-            </div>
-            <div style="margin-top: 8px;">
-                <button type="button" class="test-btn" id="testBackendBtn">测试连接</button>
-                <span id="testResult" class="test-status"></span>
-            </div>
+            <div class="form-group" style="margin-top:8px;"><label>🤖 模型名称</label><input type="text" id="modelNameInput" placeholder="gpt-3.5-turbo"></div>
+            <div style="margin-top: 8px;"><button type="button" class="test-btn" id="testBackendBtn">测试连接</button><span id="testResult" class="test-status"></span></div>
         </div>
         <hr>
-        <div class="form-group">
-            <label>🏗️ Builder API Key (构建者)</label>
-            <input type="password" id="apiKeyBuilder" placeholder="sk-...">
-        </div>
-        <div class="form-group">
-            <label>🔍 Critic API Key (批判者)</label>
-            <input type="password" id="apiKeyCritic" placeholder="sk-...">
-        </div>
-        <div class="form-group">
-            <label>🔁 最大辩论轮数 (每轮 = Builder+Critic 各一次)</label>
-            <input type="number" id="maxRoundsInput" min="1" max="20" value="10">
-        </div>
-        <div class="modal-buttons">
-            <button id="closeSettingsBtn">取消</button>
-            <button id="saveSettingsBtn">保存</button>
-        </div>
-        <div style="font-size:12px; color:#64748b; margin-top:12px;">💡 Builder / Critic 使用独立密钥，角色隔离</div>
+        <div class="form-group"><label>🏗️ Builder API Key (构建者)</label><input type="password" id="apiKeyBuilder" placeholder="sk-..."></div>
+        <div class="form-group"><label>🔍 Critic API Key (批判者)</label><input type="password" id="apiKeyCritic" placeholder="sk-..."></div>
+        <div class="form-group"><label>🔁 最大辩论轮数 (每轮 = Builder+Critic 各一次)</label><input type="number" id="maxRoundsInput" min="1" max="20" value="10"></div>
+        <div class="modal-buttons"><button id="closeSettingsBtn">取消</button><button id="saveSettingsBtn">保存</button></div>
+        <div style="font-size:12px; color:#64748b; margin-top:12px;">💡 Builder / Critic 使用独立密钥，每一轮都会针对对方上一条发言进行反驳/深化</div>
     </div>
 </div>
 
@@ -487,17 +330,13 @@
     let API_KEYS = { builder: '', critic: '' };
     let MAX_ROUNDS = 10;
     
-    // 全局状态
     let fullHistory = [];
     let currentSessionId = null;
     let debateActive = false;
     let stopDebateFlag = false;
     let currentRound = 0;
     
-    // 智能滚动：用户主动滚动时暂时禁止自动滚动到底部
     let autoScrollEnabled = true;
-    
-    // DOM 元素
     const messagesContainer = document.getElementById('messagesContainer');
     const inputBox = document.getElementById('inputBox');
     const sendBtn = document.getElementById('sendBtn');
@@ -519,233 +358,93 @@
     const apiKeyCriticInput = document.getElementById('apiKeyCritic');
     const maxRoundsInput = document.getElementById('maxRoundsInput');
 
-    // ======================= 智能滚动逻辑 =======================
-    function isNearBottom() {
-        const scrollTop = messagesContainer.scrollTop;
-        const scrollHeight = messagesContainer.scrollHeight;
-        const clientHeight = messagesContainer.clientHeight;
-        return scrollHeight - scrollTop - clientHeight < 100;
-    }
-    function handleUserScroll() {
-        // 如果用户向上滚动超过阈值，关闭自动滚动；如果滚动到底部附近，重新开启
-        if (!isNearBottom()) {
-            autoScrollEnabled = false;
-        } else {
-            autoScrollEnabled = true;
-        }
-    }
-    function smartScrollToBottom() {
-        if (autoScrollEnabled) {
-            messagesContainer.scrollTo({ top: messagesContainer.scrollHeight, behavior: 'smooth' });
-        }
-    }
-    // 强制滚动（用于用户主动操作后，如加载历史会话时）
-    function forceScrollToBottom() {
-        messagesContainer.scrollTo({ top: messagesContainer.scrollHeight, behavior: 'auto' });
-    }
-    
-    // 监听滚动事件
+    // ======================= 智能滚动 =======================
+    function isNearBottom() { const { scrollTop, scrollHeight, clientHeight } = messagesContainer; return scrollHeight - scrollTop - clientHeight < 100; }
+    function handleUserScroll() { autoScrollEnabled = isNearBottom(); }
+    function smartScrollToBottom() { if (autoScrollEnabled) messagesContainer.scrollTo({ top: messagesContainer.scrollHeight, behavior: 'smooth' }); }
+    function forceScrollToBottom() { messagesContainer.scrollTo({ top: messagesContainer.scrollHeight, behavior: 'auto' }); }
     messagesContainer.addEventListener('scroll', handleUserScroll);
     
-    function updateStatus(text, isLoading = false) {
-        statusText.innerText = text;
-        if(isLoading) statusText.innerHTML = text + ' <span class="inline-loading"></span>';
-        else statusText.innerText = text;
-    }
-    function escapeHtml(text) {
-        if(!text) return '';
-        return text.replace(/[&<>]/g, function(m) {
-            if (m === '&') return '&amp;';
-            if (m === '<') return '&lt;';
-            if (m === '>') return '&gt;';
-            return m;
-        }).replace(/\n/g, '<br>');
-    }
-
+    function updateStatus(text, isLoading = false) { statusText.innerText = text; if(isLoading) statusText.innerHTML = text + ' <span class="inline-loading"></span>'; else statusText.innerText = text; }
+    function escapeHtml(text) { if(!text) return ''; return text.replace(/[&<>]/g, m => m==='&'?'&amp;':m==='<'?'&lt;':'&gt;').replace(/\n/g,'<br>'); }
     function createMessageElement(role, content) {
-        const div = document.createElement('div');
-        div.className = `message ${role}`;
-        let roleName = '';
-        if (role === 'user') roleName = '👤 我';
-        else if (role === 'builder') roleName = '🏗️ 构建者';
-        else if (role === 'critic') roleName = '🔍 批判者';
-        else roleName = role;
-        div.innerHTML = `
-            <div class="message-role">${roleName}</div>
-            <div class="bubble message-content">${escapeHtml(content)}</div>
-        `;
+        const div = document.createElement('div'); div.className = `message ${role}`;
+        let roleName = role === 'user' ? '👤 我' : (role === 'builder' ? '🏗️ 构建者' : (role === 'critic' ? '🔍 批判者' : role));
+        div.innerHTML = `<div class="message-role">${roleName}</div><div class="bubble message-content">${escapeHtml(content)}</div>`;
         return div;
     }
-
     function renderFullConversation() {
         messagesContainer.innerHTML = '';
-        if(fullHistory.length === 0) {
-            messagesContainer.innerHTML = '<div style="text-align:center; color:#94a3b8; padding:40px;">✨ 发送消息，Builder 和 Critic 将自动展开讨论</div>';
-            return;
-        }
-        fullHistory.forEach(msg => {
-            const el = createMessageElement(msg.role, msg.content);
-            messagesContainer.appendChild(el);
-        });
-        forceScrollToBottom();
-        // 重置自动滚动标志
-        autoScrollEnabled = true;
+        if(fullHistory.length === 0) { messagesContainer.innerHTML = '<div style="text-align:center; color:#94a3b8; padding:40px;">✨ 发送消息，Builder 和 Critic 将针对对方观点展开循环辩论</div>'; }
+        else { fullHistory.forEach(msg => messagesContainer.appendChild(createMessageElement(msg.role, msg.content))); }
+        forceScrollToBottom(); autoScrollEnabled = true; syncContinueButton();
     }
-
     function appendSingleMessage(role, content, saveToHistory = true) {
-        const el = createMessageElement(role, content);
-        messagesContainer.appendChild(el);
+        messagesContainer.appendChild(createMessageElement(role, content));
         smartScrollToBottom();
-        if(saveToHistory) {
-            fullHistory.push({ role, content });
-            saveCurrentSession();
-        }
+        if(saveToHistory) { fullHistory.push({ role, content }); saveCurrentSession(); }
+        syncContinueButton();
     }
-
     let loadingIndicator = null;
-    function showTyping(roleHint = '🤔 思考中') {
-        if(loadingIndicator) loadingIndicator.remove();
-        const div = document.createElement('div');
-        div.className = 'message builder';
-        div.id = 'typing-placeholder';
-        div.innerHTML = `<div class="message-role">${roleHint}</div><div class="typing-indicator">正在输入<span class="inline-loading"></span></div>`;
-        messagesContainer.appendChild(div);
-        smartScrollToBottom();
-        loadingIndicator = div;
-    }
-    function hideTyping() {
-        if(loadingIndicator) { loadingIndicator.remove(); loadingIndicator = null; }
-    }
+    function showTyping(roleHint) { if(loadingIndicator) loadingIndicator.remove(); const div = document.createElement('div'); div.className = 'message builder'; div.id = 'typing-placeholder'; div.innerHTML = `<div class="message-role">${roleHint}</div><div class="typing-indicator">正在输入<span class="inline-loading"></span></div>`; messagesContainer.appendChild(div); smartScrollToBottom(); loadingIndicator = div; }
+    function hideTyping() { if(loadingIndicator) { loadingIndicator.remove(); loadingIndicator = null; } }
 
     // ======================= 会话存储 =======================
     function saveCurrentSession() {
         if(fullHistory.length === 0) return;
-        if(!currentSessionId) {
-            currentSessionId = 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
-        }
+        if(!currentSessionId) currentSessionId = 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2,6);
         const sessions = JSON.parse(localStorage.getItem('triple_ai_sessions_v2') || '[]');
-        const title = fullHistory[0]?.content.substring(0, 28) || '未命名辩论';
-        const existingIndex = sessions.findIndex(s => s.id === currentSessionId);
-        const sessionData = {
-            id: currentSessionId,
-            title: title,
-            history: [...fullHistory],
-            lastUpdated: new Date().toISOString()
-        };
-        if(existingIndex !== -1) {
-            sessions[existingIndex] = sessionData;
-        } else {
-            sessions.unshift(sessionData);
-        }
+        const title = fullHistory[0]?.content.substring(0,28) || '未命名辩论';
+        const idx = sessions.findIndex(s => s.id === currentSessionId);
+        const sessionData = { id: currentSessionId, title, history: [...fullHistory], lastUpdated: new Date().toISOString() };
+        if(idx !== -1) sessions[idx] = sessionData; else sessions.unshift(sessionData);
         while(sessions.length > 30) sessions.pop();
         localStorage.setItem('triple_ai_sessions_v2', JSON.stringify(sessions));
         renderHistoryList();
     }
-
     function loadSession(sessionId) {
         if(debateActive) { updateStatus('请先终止辩论再加载会话'); return; }
         const sessions = JSON.parse(localStorage.getItem('triple_ai_sessions_v2') || '[]');
         const session = sessions.find(s => s.id === sessionId);
-        if(session) {
-            fullHistory = JSON.parse(JSON.stringify(session.history));
-            currentSessionId = session.id;
-            renderFullConversation();
-            updateStatus(`已加载: ${session.title}`);
-            if(debateActive) debateActive = false;
-            updateUIForDebateEnd();
-        }
+        if(session) { fullHistory = JSON.parse(JSON.stringify(session.history)); currentSessionId = session.id; renderFullConversation(); updateStatus(`已加载: ${session.title}`); debateActive = false; updateUIForDebateEnd(); }
     }
-
     function deleteSession(sessionId) {
         let sessions = JSON.parse(localStorage.getItem('triple_ai_sessions_v2') || '[]');
-        const newSessions = sessions.filter(s => s.id !== sessionId);
-        localStorage.setItem('triple_ai_sessions_v2', JSON.stringify(newSessions));
-        if(currentSessionId === sessionId) {
-            fullHistory = [];
-            currentSessionId = null;
-            renderFullConversation();
-            updateStatus('当前会话已删除');
-        }
+        sessions = sessions.filter(s => s.id !== sessionId);
+        localStorage.setItem('triple_ai_sessions_v2', JSON.stringify(sessions));
+        if(currentSessionId === sessionId) { fullHistory = []; currentSessionId = null; renderFullConversation(); updateStatus('当前会话已删除'); }
         renderHistoryList();
-        if(newSessions.length === 0) document.getElementById('historyList').innerHTML = '<div class="history-item">暂无历史</div>';
+        if(sessions.length === 0) document.getElementById('historyList').innerHTML = '<div class="history-item">暂无历史</div>';
     }
-
     function newConversation() {
         if(debateActive) { updateStatus('请先终止辩论再新建对话'); return; }
         if(fullHistory.length > 0 && currentSessionId) saveCurrentSession();
-        fullHistory = [];
-        currentSessionId = null;
-        renderFullConversation();
-        updateStatus('已创建新对话');
-        updateUIForDebateEnd();
-        roundInfoSpan.innerText = `⚙️ 最大轮数: ${MAX_ROUNDS}`;
-        renderHistoryList();
+        fullHistory = []; currentSessionId = null; renderFullConversation(); updateStatus('已创建新对话'); updateUIForDebateEnd(); roundInfoSpan.innerText = `⚙️ 最大轮数: ${MAX_ROUNDS}`; renderHistoryList();
     }
-
     function resetConversation() {
         if(debateActive) { stopDebateFlag = true; debateActive = false; }
         fullHistory = [];
-        if(currentSessionId) {
-            let sessions = JSON.parse(localStorage.getItem('triple_ai_sessions_v2') || '[]');
-            sessions = sessions.filter(s => s.id !== currentSessionId);
-            localStorage.setItem('triple_ai_sessions_v2', JSON.stringify(sessions));
-            currentSessionId = null;
-        }
-        renderFullConversation();
-        updateStatus('对话已清空');
-        updateUIForDebateEnd();
-        roundInfoSpan.innerText = `⚙️ 最大轮数: ${MAX_ROUNDS}`;
-        renderHistoryList();
+        if(currentSessionId) { let sessions = JSON.parse(localStorage.getItem('triple_ai_sessions_v2') || '[]'); sessions = sessions.filter(s => s.id !== currentSessionId); localStorage.setItem('triple_ai_sessions_v2', JSON.stringify(sessions)); currentSessionId = null; }
+        renderFullConversation(); updateStatus('对话已清空'); updateUIForDebateEnd(); roundInfoSpan.innerText = `⚙️ 最大轮数: ${MAX_ROUNDS}`; renderHistoryList();
     }
-
     function renderHistoryList() {
-        const historyDiv = document.getElementById('historyList');
-        if(!historyDiv) return;
+        const historyDiv = document.getElementById('historyList'); if(!historyDiv) return;
         const sessions = JSON.parse(localStorage.getItem('triple_ai_sessions_v2') || '[]');
-        if(sessions.length === 0) {
-            historyDiv.innerHTML = '<div class="history-item">暂无历史</div>';
-            return;
-        }
+        if(sessions.length === 0) { historyDiv.innerHTML = '<div class="history-item">暂无历史</div>'; return; }
         historyDiv.innerHTML = '';
         sessions.slice().reverse().forEach(session => {
-            const div = document.createElement('div');
-            div.className = 'history-item';
-            if(currentSessionId === session.id) div.classList.add('active');
-            const contentDiv = document.createElement('div');
-            contentDiv.style.cursor = 'pointer';
-            contentDiv.innerHTML = `<div class="history-title">${escapeHtml(session.title)}</div><div class="history-time">${new Date(session.lastUpdated).toLocaleString()}</div>`;
+            const div = document.createElement('div'); div.className = 'history-item'; if(currentSessionId === session.id) div.classList.add('active');
+            const contentDiv = document.createElement('div'); contentDiv.style.cursor = 'pointer'; contentDiv.innerHTML = `<div class="history-title">${escapeHtml(session.title)}</div><div class="history-time">${new Date(session.lastUpdated).toLocaleString()}</div>`;
             contentDiv.onclick = () => loadSession(session.id);
             div.appendChild(contentDiv);
-            const delBtn = document.createElement('button');
-            delBtn.innerHTML = '🗑️';
-            delBtn.className = 'delete-session';
-            delBtn.onclick = (e) => { e.stopPropagation(); if(confirm('删除会话?')) deleteSession(session.id); };
-            div.appendChild(delBtn);
+            const delBtn = document.createElement('button'); delBtn.innerHTML = '🗑️'; delBtn.className = 'delete-session'; delBtn.onclick = (e) => { e.stopPropagation(); if(confirm('删除会话?')) deleteSession(session.id); }; div.appendChild(delBtn);
             historyDiv.appendChild(div);
         });
     }
+    function syncContinueButton() { continueBtn.disabled = (fullHistory.length === 0) || debateActive; }
 
-    // ======================= LLM 调用核心 =======================
-    async function callLLM(apiKey, systemPrompt, conversationHistory, roleName = 'assistant') {
-        if(!apiKey) throw new Error(`缺少 ${roleName} 的 API Key`);
-        const url = `${API_BASE_URL}/chat/completions`;
-        const messages = [{ role: 'system', content: systemPrompt }, ...conversationHistory];
-        const payload = { model: MODEL_NAME, messages, temperature: 0.7, max_tokens: 800 };
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 45000);
-        try {
-            const response = await fetch(url, {
-                method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
-                body: JSON.stringify(payload), signal: controller.signal
-            });
-            clearTimeout(timeoutId);
-            if(!response.ok) { const errText = await response.text(); throw new Error(`API错误 ${response.status}: ${errText.substring(0,150)}`); }
-            const data = await response.json();
-            if(data.choices && data.choices[0]?.message) return data.choices[0].message.content.trim();
-            throw new Error('无效响应格式');
-        } catch(err) { clearTimeout(timeoutId); throw err; }
-    }
-
+    // ======================= 核心辩论逻辑 (强化对抗) =======================
+    // 构建上下文时包含完整历史，但系统提示会要求针对最后一条对方消息进行回应
     function buildContextForModel() {
         const context = [];
         for(const msg of fullHistory) {
@@ -756,12 +455,27 @@
         }
         return context;
     }
+    // 改进后的系统提示：明确要求针对上一条消息（尤其是对方观点）进行反驳、补充或深入探讨
+    const BUILDER_SYSTEM = `你是一位资深「构建者」，擅长提出创新、可行、建设性的方案。你的任务是：仔细阅读对话历史，尤其是上一条消息（可能是用户或批判者），并针对上一条消息中的观点进行回应、反驳或深化。你需要给出清晰、有深度的建设性观点或解决方案。直接输出你的回应，不要重复之前的内容，不要扮演批判者。务必展现出你理解了对方所说的内容，并做出有针对性的回应。`;
+    const CRITIC_SYSTEM = `你是一位严谨的「批判者」，擅长发现逻辑漏洞、潜在风险与不足之处。你的任务是：仔细阅读对话历史，尤其是上一条消息（可能是用户或构建者），并针对上一条消息中的观点提出尖锐且建设性的质疑、补充反例或风险警告。你需要直接输出批判性意见，展现你对对方观点的理解并给出反驳或风险分析。专业客观，不要重复对方。`;
 
-    const BUILDER_SYSTEM = `你是一位资深「构建者」，擅长提出创新、可行、建设性的方案。针对当前讨论话题，给出清晰、有深度的观点、解决方案或补充建议。注重逻辑和实用性。直接输出观点，不要重复之前的对话，不要扮演批判者。`;
-    const CRITIC_SYSTEM = `你是一位严谨的「批判者」，擅长发现逻辑漏洞、潜在风险与不足之处。对构建者或当前讨论的观点提出尖锐且建设性的质疑、补充反例或风险警告。直接输出批判性意见，专业客观。`;
-
-    async function invokeBuilder() { const ctx = buildContextForModel(); if(ctx.length===0) throw new Error("无上下文"); return await callLLM(API_KEYS.builder, BUILDER_SYSTEM, ctx, 'Builder'); }
-    async function invokeCritic() { const ctx = buildContextForModel(); if(ctx.length===0) throw new Error("无上下文"); return await callLLM(API_KEYS.critic, CRITIC_SYSTEM, ctx, 'Critic'); }
+    async function callLLM(apiKey, systemPrompt, conversationHistory, roleName) {
+        if(!apiKey) throw new Error(`缺少 ${roleName} 的 API Key`);
+        const url = `${API_BASE_URL}/chat/completions`;
+        const messages = [{ role: 'system', content: systemPrompt }, ...conversationHistory];
+        const payload = { model: MODEL_NAME, messages, temperature: 0.75, max_tokens: 800 };
+        const controller = new AbortController(); const timeoutId = setTimeout(() => controller.abort(), 45000);
+        try {
+            const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` }, body: JSON.stringify(payload), signal: controller.signal });
+            clearTimeout(timeoutId);
+            if(!response.ok) { const errText = await response.text(); throw new Error(`API错误 ${response.status}: ${errText.substring(0,150)}`); }
+            const data = await response.json();
+            if(data.choices && data.choices[0]?.message) return data.choices[0].message.content.trim();
+            throw new Error('无效响应格式');
+        } catch(err) { clearTimeout(timeoutId); throw err; }
+    }
+    async function invokeBuilder() { const ctx = buildContextForModel(); if(ctx.length === 0) throw new Error("无上下文"); return await callLLM(API_KEYS.builder, BUILDER_SYSTEM, ctx, 'Builder'); }
+    async function invokeCritic() { const ctx = buildContextForModel(); if(ctx.length === 0) throw new Error("无上下文"); return await callLLM(API_KEYS.critic, CRITIC_SYSTEM, ctx, 'Critic'); }
 
     async function runDebateCycle() {
         if(debateActive) return;
@@ -769,22 +483,18 @@
             appendSingleMessage('system_summary', '⚠️ 请先在设置中填写 Builder 和 Critic 的 API Key', false);
             settingsModal.classList.add('active'); return;
         }
-        // 检查是否有历史内容（至少要有用户消息）
-        if(fullHistory.length === 0) {
-            appendSingleMessage('system_summary', '💡 没有对话内容，请先发送一条消息开始讨论', false);
-            return;
-        }
+        if(fullHistory.length === 0) { appendSingleMessage('system_summary', '💡 没有对话内容，请先发送一条消息开始讨论', false); return; }
         debateActive = true; stopDebateFlag = false; currentRound = 0;
-        updateUIForDebateStart(); updateStatus('辩论进行中...', true);
+        updateUIForDebateStart(); updateStatus('辩论进行中（针对对方观点反驳）...', true);
         try {
             while(!stopDebateFlag && currentRound < MAX_ROUNDS) {
                 if(stopDebateFlag) break;
-                showTyping('🏗️ 构建者思考中');
+                showTyping('🏗️ 构建者正在针对上一条观点思考...');
                 let builderReply = await invokeBuilder();
                 hideTyping();
                 appendSingleMessage('builder', builderReply || "(Builder 未生成内容)", true);
                 if(stopDebateFlag) break;
-                showTyping('🔍 批判者思考中');
+                showTyping('🔍 批判者正在针对上一条观点质疑...');
                 let criticReply = await invokeCritic();
                 hideTyping();
                 appendSingleMessage('critic', criticReply || "(Critic 未生成内容)", true);
@@ -793,60 +503,25 @@
                 if(stopDebateFlag) break;
                 await new Promise(r => setTimeout(r, 300));
             }
-            if(stopDebateFlag) {
-                updateStatus('辩论已终止');
-                appendSingleMessage('system_summary', '⏸️ 用户终止了辩论，你可以点击【继续讨论】或发送新消息', false);
-            } else if(currentRound >= MAX_ROUNDS) {
-                updateStatus('辩论达到最大轮数');
-                appendSingleMessage('system_summary', `🏁 已达到最大辩论轮数 (${MAX_ROUNDS})，你可以点击【继续讨论】继续辩论`, false);
-            }
-        } catch(err) {
-            updateStatus(`辩论出错: ${err.message}`);
-            appendSingleMessage('system_summary', `⚠️ 辩论中断: ${err.message}`, false);
-        } finally {
-            debateActive = false;
-            stopDebateFlag = false;
-            updateUIForDebateEnd();
-            roundInfoSpan.innerText = `⚙️ 最大轮数: ${MAX_ROUNDS}`;
-        }
+            if(stopDebateFlag) { updateStatus('辩论已终止'); appendSingleMessage('system_summary', '⏸️ 用户终止了辩论，你可以点击【继续讨论】或发送新消息', false); }
+            else if(currentRound >= MAX_ROUNDS) { updateStatus('辩论达到最大轮数'); appendSingleMessage('system_summary', `🏁 已达到最大辩论轮数 (${MAX_ROUNDS})，你可以点击【继续讨论】继续辩论`, false); }
+        } catch(err) { updateStatus(`辩论出错: ${err.message}`); appendSingleMessage('system_summary', `⚠️ 辩论中断: ${err.message}`, false); }
+        finally { debateActive = false; stopDebateFlag = false; updateUIForDebateEnd(); roundInfoSpan.innerText = `⚙️ 最大轮数: ${MAX_ROUNDS}`; }
     }
 
     async function sendUserMessageAndStartDebate() {
         if(debateActive) { updateStatus('辩论进行中，请先点击【终止辩论】再发送新消息'); return; }
-        const question = inputBox.value.trim();
-        if(!question) return;
+        const question = inputBox.value.trim(); if(!question) return;
         inputBox.value = '';
         appendSingleMessage('user', question, true);
         await runDebateCycle();
     }
-
     function stopDebate() { if(!debateActive) updateStatus('当前没有进行中的辩论'); else { stopDebateFlag = true; updateStatus('正在终止辩论...'); } }
-    
-    // 继续讨论：基于当前历史重新开始辩论循环
-    async function continueDebate() {
-        if(debateActive) { updateStatus('辩论已在运行中'); return; }
-        if(fullHistory.length === 0) { updateStatus('没有对话历史，请先发送消息'); return; }
-        await runDebateCycle();
-    }
+    async function continueDebate() { if(debateActive) { updateStatus('辩论已在运行中'); return; } if(fullHistory.length === 0) { updateStatus('没有对话历史，请先发送消息'); return; } await runDebateCycle(); }
+    function updateUIForDebateStart() { sendBtn.disabled = true; stopBtn.disabled = false; continueBtn.disabled = true; resetBtn.disabled = true; newChatBtn.disabled = true; }
+    function updateUIForDebateEnd() { sendBtn.disabled = false; stopBtn.disabled = true; continueBtn.disabled = (fullHistory.length === 0) || debateActive; resetBtn.disabled = false; newChatBtn.disabled = false; if(!debateActive) updateStatus('就绪'); }
 
-    function updateUIForDebateStart() { 
-        sendBtn.disabled = true; 
-        stopBtn.disabled = false; 
-        continueBtn.disabled = true;
-        resetBtn.disabled = true; 
-        newChatBtn.disabled = true; 
-    }
-    function updateUIForDebateEnd() { 
-        sendBtn.disabled = false; 
-        stopBtn.disabled = true; 
-        // 只有在有历史且未在辩论中时，继续按钮才可用
-        continueBtn.disabled = (fullHistory.length === 0) || debateActive;
-        resetBtn.disabled = false; 
-        newChatBtn.disabled = false; 
-        if(!debateActive) updateStatus('就绪'); 
-    }
-
-    // 设置相关
+    // ======================= 设置 =======================
     function saveSettings() {
         const newBase = backendUrlInput.value.trim(); if(newBase) API_BASE_URL = newBase.replace(/\/$/, '');
         const newModel = modelNameInput.value.trim(); if(newModel) MODEL_NAME = newModel;
@@ -854,9 +529,7 @@
         const maxR = parseInt(maxRoundsInput.value,10); if(!isNaN(maxR) && maxR>0) MAX_ROUNDS = Math.min(maxR,20);
         roundInfoSpan.innerText = `⚙️ 最大轮数: ${MAX_ROUNDS}`;
         localStorage.setItem('triple_ai_settings_v2', JSON.stringify({ baseUrl:API_BASE_URL, model:MODEL_NAME, apiKeys:API_KEYS, maxRounds:MAX_ROUNDS }));
-        updateStatus('设置已保存');
-        // 更新按钮状态（继续按钮依赖API keys有效性）
-        updateUIForDebateEnd();
+        updateStatus('设置已保存'); updateUIForDebateEnd();
     }
     function loadSettings() {
         const saved = localStorage.getItem('triple_ai_settings_v2');
@@ -891,45 +564,6 @@
     testBackendBtn.onclick = testConnection;
     settingsModal.onclick = (e) => { if(e.target === settingsModal) settingsModal.classList.remove('active'); };
     inputBox.addEventListener('keydown', (e) => { if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendUserMessageAndStartDebate(); } });
-    
-    // 监听 fullHistory 变化以更新继续按钮状态（在 appendSingleMessage 中已调用 saveCurrentSession，但需要同步UI）
-    // 通过代理或直接修改 updateUIForDebateEnd 调用时机，在每次历史变更后调用
-    const origAppend = appendSingleMessage;
-    window.appendSingleMessage = function(role, content, save) {
-        origAppend(role, content, save);
-        updateUIForDebateEnd();
-    };
-    // 重写以确保每次fullHistory变化后更新按钮状态
-    function syncContinueButton() {
-        continueBtn.disabled = (fullHistory.length === 0) || debateActive;
-    }
-    // 覆盖原有的appendSingleMessage逻辑
-    appendSingleMessage = function(role, content, saveToHistory = true) {
-        const el = createMessageElement(role, content);
-        messagesContainer.appendChild(el);
-        smartScrollToBottom();
-        if(saveToHistory) {
-            fullHistory.push({ role, content });
-            saveCurrentSession();
-        }
-        syncContinueButton();
-    };
-    // 同样修改 reset 和 load 中的调用
-    const origRender = renderFullConversation;
-    renderFullConversation = function() {
-        messagesContainer.innerHTML = '';
-        if(fullHistory.length === 0) {
-            messagesContainer.innerHTML = '<div style="text-align:center; color:#94a3b8; padding:40px;">✨ 发送消息，Builder 和 Critic 将自动展开讨论</div>';
-        } else {
-            fullHistory.forEach(msg => {
-                const el = createMessageElement(msg.role, msg.content);
-                messagesContainer.appendChild(el);
-            });
-        }
-        forceScrollToBottom();
-        autoScrollEnabled = true;
-        syncContinueButton();
-    };
     
     // 初始化
     loadSettings();
