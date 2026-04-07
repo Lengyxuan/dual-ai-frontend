@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>AI智囊团 · 对抗式辩论引擎</title>
+    <title>AI智囊团 · 深度对抗式辩论引擎</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -277,7 +277,7 @@
 <body>
 <div class="status-bar">
     <div class="status-left">
-        <span>🤖 AI智囊团 · 对抗式辩论引擎 (Builder vs Critic)</span>
+        <span>🤖 AI智囊团 · 深度对抗式辩论引擎 </span>
         <span class="status-badge" id="statusText">就绪</span>
     </div>
     <button class="settings-btn" id="settingsBtn">⚙️ 设置</button>
@@ -296,10 +296,10 @@
             <div class="round-badge" id="roundInfo">⚙️ 最大轮数: 10</div>
         </div>
         <div class="messages-container" id="messagesContainer">
-            <div style="text-align:center; color:#94a3b8; padding:40px;">✨ 发送消息，Builder 和 Critic 将针对对方观点展开循环辩论</div>
+            <div style="text-align:center; color:#94a3b8; padding:40px;">✨ 发送消息，Builder 和 Critic 将逐轮反驳对方观点</div>
         </div>
         <div class="input-area">
-            <textarea class="input-box" id="inputBox" rows="2" placeholder="输入你的观点或问题... (发送后将触发双角色循环辩论)"></textarea>
+            <textarea class="input-box" id="inputBox" rows="2" placeholder="输入你的观点或问题... (首轮Builder直接回应，之后每轮严格针对对方上一条发言)"></textarea>
             <button id="sendBtn">发送</button>
         </div>
     </div>
@@ -319,7 +319,7 @@
         <div class="form-group"><label>🔍 Critic API Key (批判者)</label><input type="password" id="apiKeyCritic" placeholder="sk-..."></div>
         <div class="form-group"><label>🔁 最大辩论轮数 (每轮 = Builder+Critic 各一次)</label><input type="number" id="maxRoundsInput" min="1" max="20" value="10"></div>
         <div class="modal-buttons"><button id="closeSettingsBtn">取消</button><button id="saveSettingsBtn">保存</button></div>
-        <div style="font-size:12px; color:#64748b; margin-top:12px;">💡 Builder / Critic 使用独立密钥，每一轮都会针对对方上一条发言进行反驳/深化</div>
+        <div style="font-size:12px; color:#64748b; margin-top:12px;">💡 Builder 首轮回应问题，之后双方严格反驳上一条发言，并引入新论点</div>
     </div>
 </div>
 
@@ -375,7 +375,7 @@
     }
     function renderFullConversation() {
         messagesContainer.innerHTML = '';
-        if(fullHistory.length === 0) { messagesContainer.innerHTML = '<div style="text-align:center; color:#94a3b8; padding:40px;">✨ 发送消息，Builder 和 Critic 将针对对方观点展开循环辩论</div>'; }
+        if(fullHistory.length === 0) { messagesContainer.innerHTML = '<div style="text-align:center; color:#94a3b8; padding:40px;">✨ 发送消息，Builder 和 Critic 将逐轮反驳对方观点</div>'; }
         else { fullHistory.forEach(msg => messagesContainer.appendChild(createMessageElement(msg.role, msg.content))); }
         forceScrollToBottom(); autoScrollEnabled = true; syncContinueButton();
     }
@@ -443,8 +443,8 @@
     }
     function syncContinueButton() { continueBtn.disabled = (fullHistory.length === 0) || debateActive; }
 
-    // ======================= 核心辩论逻辑 (强化对抗) =======================
-    // 构建上下文时包含完整历史，但系统提示会要求针对最后一条对方消息进行回应
+    // ======================= 核心辩论逻辑（强化逐轮反驳，避免重复） =======================
+    // 构建完整对话上下文
     function buildContextForModel() {
         const context = [];
         for(const msg of fullHistory) {
@@ -455,15 +455,46 @@
         }
         return context;
     }
-    // 改进后的系统提示：明确要求针对上一条消息（尤其是对方观点）进行反驳、补充或深入探讨
-    const BUILDER_SYSTEM = `你是一位资深「构建者」，擅长提出创新、可行、建设性的方案。你的任务是：仔细阅读对话历史，尤其是上一条消息（可能是用户或批判者），并针对上一条消息中的观点进行回应、反驳或深化。你需要给出清晰、有深度的建设性观点或解决方案。直接输出你的回应，不要重复之前的内容，不要扮演批判者。务必展现出你理解了对方所说的内容，并做出有针对性的回应。`;
-    const CRITIC_SYSTEM = `你是一位严谨的「批判者」，擅长发现逻辑漏洞、潜在风险与不足之处。你的任务是：仔细阅读对话历史，尤其是上一条消息（可能是用户或构建者），并针对上一条消息中的观点提出尖锐且建设性的质疑、补充反例或风险警告。你需要直接输出批判性意见，展现你对对方观点的理解并给出反驳或风险分析。专业客观，不要重复对方。`;
-
+    
+    // 判断当前是第几轮（用于系统提示动态调整）
+    // 通过 fullHistory 中 builder+critic 的消息数量来判断已完成的轮次
+    function getCurrentDebateRound() {
+        let pairCount = 0;
+        for(let i=0; i<fullHistory.length; i++) {
+            if(fullHistory[i].role === 'builder' && (i+1 < fullHistory.length && fullHistory[i+1].role === 'critic')) {
+                pairCount++;
+                i++; // 跳过下一个
+            } else if(fullHistory[i].role === 'critic') {
+                // 单独的critic也算半轮？简化处理
+            }
+        }
+        return pairCount; // 已完成的完整轮数
+    }
+    
+    // 改进后的系统提示：根据是否为首轮动态调整
+    // 由于每次调用时 fullHistory 已包含最新消息，我们可以在提示中描述行为
+    const BUILDER_SYSTEM_BASE = `你是一位资深「构建者」，擅长提出创新、可行、建设性的方案。你的发言必须严格遵循以下规则：
+1. 如果这是对话中你的第一次发言（即用户刚刚提出问题，还没有任何构建者或批判者的回复），请直接针对用户的问题给出清晰、有深度的建设性观点或解决方案。不要评价批判者，因为批判者尚未发言。
+2. 如果之前已经有批判者或构建者发言，那么你必须针对上一条消息（通常是批判者的质疑）进行回应：先明确指出你回应的是哪一点，然后提出反驳、补充证据或深化论点。严禁重复之前自己或其他角色已经说过的内容，必须引入新的事实、逻辑或视角。
+3. 每次发言都要展现出你理解了对方的核心论点，并给出有针对性的回应。避免泛泛而谈，保持专业和建设性。
+4. 直接输出你的回应，不要添加任何前缀或元说明。`;
+    
+    const CRITIC_SYSTEM_BASE = `你是一位严谨的「批判者」，擅长发现逻辑漏洞、潜在风险与不足之处。你的发言必须严格遵循以下规则：
+1. 如果这是对话中你的第一次发言（即构建者刚刚给出了对用户问题的回应），请针对构建者的观点提出尖锐且建设性的质疑、补充反例或风险警告。明确指出你认为有问题的部分。
+2. 如果之前已经有批判者或构建者发言，那么你必须针对上一条消息（通常是构建者的新论点）进行回应：先复述你理解的对方核心观点，然后指出其中的逻辑缺陷、证据不足或潜在风险。严禁重复之前已经提出过的质疑，必须挖掘新的问题或更深层次的风险。
+3. 每次发言都要展现批判性思维，避免情绪化，保持客观和专业。
+4. 直接输出你的回应，不要添加任何前缀或元说明。`;
+    
+    // 动态拼接提示，加上“禁止重复”强化
+    const getBuilderPrompt = () => BUILDER_SYSTEM_BASE;
+    const getCriticPrompt = () => CRITIC_SYSTEM_BASE;
+    
     async function callLLM(apiKey, systemPrompt, conversationHistory, roleName) {
         if(!apiKey) throw new Error(`缺少 ${roleName} 的 API Key`);
         const url = `${API_BASE_URL}/chat/completions`;
         const messages = [{ role: 'system', content: systemPrompt }, ...conversationHistory];
-        const payload = { model: MODEL_NAME, messages, temperature: 0.75, max_tokens: 800 };
+        // 提升 temperature 到 0.85 增加回答多样性，避免循环相似
+        const payload = { model: MODEL_NAME, messages, temperature: 0.85, max_tokens: 900 };
         const controller = new AbortController(); const timeoutId = setTimeout(() => controller.abort(), 45000);
         try {
             const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` }, body: JSON.stringify(payload), signal: controller.signal });
@@ -474,9 +505,19 @@
             throw new Error('无效响应格式');
         } catch(err) { clearTimeout(timeoutId); throw err; }
     }
-    async function invokeBuilder() { const ctx = buildContextForModel(); if(ctx.length === 0) throw new Error("无上下文"); return await callLLM(API_KEYS.builder, BUILDER_SYSTEM, ctx, 'Builder'); }
-    async function invokeCritic() { const ctx = buildContextForModel(); if(ctx.length === 0) throw new Error("无上下文"); return await callLLM(API_KEYS.critic, CRITIC_SYSTEM, ctx, 'Critic'); }
-
+    
+    async function invokeBuilder() {
+        const ctx = buildContextForModel();
+        if(ctx.length === 0) throw new Error("无上下文");
+        // 在上下文中附加一个隐式的指令，强调不要重复（通过系统提示已覆盖）
+        return await callLLM(API_KEYS.builder, getBuilderPrompt(), ctx, 'Builder');
+    }
+    async function invokeCritic() {
+        const ctx = buildContextForModel();
+        if(ctx.length === 0) throw new Error("无上下文");
+        return await callLLM(API_KEYS.critic, getCriticPrompt(), ctx, 'Critic');
+    }
+    
     async function runDebateCycle() {
         if(debateActive) return;
         if(!API_KEYS.builder || !API_KEYS.critic) {
@@ -485,11 +526,11 @@
         }
         if(fullHistory.length === 0) { appendSingleMessage('system_summary', '💡 没有对话内容，请先发送一条消息开始讨论', false); return; }
         debateActive = true; stopDebateFlag = false; currentRound = 0;
-        updateUIForDebateStart(); updateStatus('辩论进行中（针对对方观点反驳）...', true);
+        updateUIForDebateStart(); updateStatus('辩论进行中（逐轮反驳，禁止重复）...', true);
         try {
             while(!stopDebateFlag && currentRound < MAX_ROUNDS) {
                 if(stopDebateFlag) break;
-                showTyping('🏗️ 构建者正在针对上一条观点思考...');
+                showTyping('🏗️ 构建者正在针对上一条观点反驳/深化...');
                 let builderReply = await invokeBuilder();
                 hideTyping();
                 appendSingleMessage('builder', builderReply || "(Builder 未生成内容)", true);
@@ -501,14 +542,14 @@
                 currentRound++;
                 roundInfoSpan.innerText = `⚙️ 当前轮数: ${currentRound}/${MAX_ROUNDS}`;
                 if(stopDebateFlag) break;
-                await new Promise(r => setTimeout(r, 300));
+                await new Promise(r => setTimeout(r, 350)); // 稍微增加间隔
             }
             if(stopDebateFlag) { updateStatus('辩论已终止'); appendSingleMessage('system_summary', '⏸️ 用户终止了辩论，你可以点击【继续讨论】或发送新消息', false); }
             else if(currentRound >= MAX_ROUNDS) { updateStatus('辩论达到最大轮数'); appendSingleMessage('system_summary', `🏁 已达到最大辩论轮数 (${MAX_ROUNDS})，你可以点击【继续讨论】继续辩论`, false); }
         } catch(err) { updateStatus(`辩论出错: ${err.message}`); appendSingleMessage('system_summary', `⚠️ 辩论中断: ${err.message}`, false); }
         finally { debateActive = false; stopDebateFlag = false; updateUIForDebateEnd(); roundInfoSpan.innerText = `⚙️ 最大轮数: ${MAX_ROUNDS}`; }
     }
-
+    
     async function sendUserMessageAndStartDebate() {
         if(debateActive) { updateStatus('辩论进行中，请先点击【终止辩论】再发送新消息'); return; }
         const question = inputBox.value.trim(); if(!question) return;
@@ -520,7 +561,7 @@
     async function continueDebate() { if(debateActive) { updateStatus('辩论已在运行中'); return; } if(fullHistory.length === 0) { updateStatus('没有对话历史，请先发送消息'); return; } await runDebateCycle(); }
     function updateUIForDebateStart() { sendBtn.disabled = true; stopBtn.disabled = false; continueBtn.disabled = true; resetBtn.disabled = true; newChatBtn.disabled = true; }
     function updateUIForDebateEnd() { sendBtn.disabled = false; stopBtn.disabled = true; continueBtn.disabled = (fullHistory.length === 0) || debateActive; resetBtn.disabled = false; newChatBtn.disabled = false; if(!debateActive) updateStatus('就绪'); }
-
+    
     // ======================= 设置 =======================
     function saveSettings() {
         const newBase = backendUrlInput.value.trim(); if(newBase) API_BASE_URL = newBase.replace(/\/$/, '');
@@ -551,7 +592,7 @@
             else { testResultSpan.innerText=`⚠️ ${res.status}`; testResultSpan.style.color='#ef4444'; }
         } catch(e){ testResultSpan.innerText=`❌ 连接失败: ${e.message}`; testResultSpan.style.color='#ef4444'; }
     }
-
+    
     // 事件绑定
     sendBtn.onclick = sendUserMessageAndStartDebate;
     stopBtn.onclick = stopDebate;
