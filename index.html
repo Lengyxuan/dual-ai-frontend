@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>三AI智囊团 · 连续对话版</title>
+    <title>三AI智囊团 · 连续对话优化版</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -288,7 +288,7 @@
 <body>
 <div class="status-bar">
     <div class="status-left">
-        <span>🤖 三AI智囊团 · 连续对话版</span>
+        <span>🤖 三AI智囊团 · 连续对话优化版</span>
         <span class="status-badge" id="statusText">就绪</span>
     </div>
     <button class="settings-btn" id="settingsBtn">⚙️ 设置</button>
@@ -423,18 +423,33 @@
             messagesContainer.appendChild(el);
         });
         scrollToBottom();
-        autoSave(); // 每次渲染后保存
+        autoSave();
     }
 
-    // 追加单条消息（仅用于总结或错误提示，不用于用户消息，因为用户消息会由后端统一渲染）
-    function appendMessageToUI(role, content) {
+    // 追加单条消息（用于总结或新增辩论消息）
+    function appendMessageToUI(role, content, saveToHistory = true) {
         const el = createMessageElement(role, content);
         messagesContainer.appendChild(el);
         scrollToBottom();
-        if (role !== 'system_summary') {
+        if (saveToHistory && role !== 'system_summary') {
             fullHistory.push({ role, content });
             autoSave();
         }
+    }
+
+    // 追加多条消息（用于批量添加后端返回的新辩论内容，避免重复添加用户消息）
+    function appendMessagesToUI(messages) {
+        messages.forEach(msg => {
+            const el = createMessageElement(msg.role, msg.content);
+            messagesContainer.appendChild(el);
+        });
+        scrollToBottom();
+        // 更新 fullHistory：需要合并，但注意不要重复添加用户消息（因为用户消息已乐观添加）
+        // 简单起见，重新从后端返回的完整历史设置 fullHistory 并重新渲染，但为了避免闪烁，我们只追加新消息
+        // 为了准确，这里我们采用重新设置 fullHistory 并整体渲染，但这样会有短暂闪烁，但逻辑简单可靠
+        // 考虑到性能，可以接受
+        fullHistory = messages;
+        renderFullConversation();
     }
 
     // 清空消息UI
@@ -470,24 +485,24 @@
                 apiKeys: API_KEYS
             });
             if (result.summary) {
-                appendMessageToUI('system_summary', result.summary);
+                appendMessageToUI('system_summary', result.summary, false);
             } else {
-                appendMessageToUI('system_summary', '总结生成失败，请重试。');
+                appendMessageToUI('system_summary', '总结生成失败，请重试。', false);
             }
         } catch (err) {
             console.error(err);
-            appendMessageToUI('system_summary', `总结错误: ${err.message}`);
+            appendMessageToUI('system_summary', `总结错误: ${err.message}`, false);
         } finally {
             updateStatus('就绪');
         }
     }
 
-    // 🔧 修复：开始辩论（首次 或 继续）
+    // 开始辩论（首次 或 继续）
     async function startDiscussion(question, previousHistory = null) {
         if (!question.trim()) return;
         // 检查API Key
         if (!API_KEYS.builder || !API_KEYS.critic) {
-            appendMessageToUI('system_summary', '⚠️ 请在设置中填写 Builder 和 Critic 的 API Key');
+            appendMessageToUI('system_summary', '⚠️ 请在设置中填写 Builder 和 Critic 的 API Key', false);
             settingsModal.classList.add('active');
             return;
         }
@@ -495,13 +510,14 @@
         isDiscussing = true;
         updateUIForDebateStart();
 
-        // 如果是全新对话，清空历史和界面
+        // 乐观更新：立即显示用户消息（如果 previousHistory 存在，说明是继续对话，需要先确保界面已显示旧历史）
         if (!previousHistory) {
+            // 全新对话：清空历史和界面，然后添加用户消息
             fullHistory = [];
             clearMessagesUI();
-            // 注意：不预先添加用户消息，等待后端返回后统一渲染（但为了即时反馈，可以加一个临时的“发送中”提示，但这里简化）
         }
-        // 如果是继续对话，不清空界面，也不预先添加用户消息，等待后端返回后整体刷新
+        // 添加用户消息到界面和历史（乐观更新）
+        appendMessageToUI('user', question, true);
 
         const payload = {
             question: question,
@@ -517,6 +533,8 @@
             currentSessionId = result.sessionId;
 
             if (result.history) {
+                // 后端返回的完整历史包含了用户消息 + 辩论内容
+                // 为了避免重复显示用户消息，我们直接替换 fullHistory 并重新渲染
                 fullHistory = result.history;
                 renderFullConversation();
             }
@@ -529,7 +547,7 @@
             }
         } catch (err) {
             console.error(err);
-            appendMessageToUI('system_summary', `辩论出错: ${err.message}`);
+            appendMessageToUI('system_summary', `辩论出错: ${err.message}`, false);
             updateStatus('错误');
         } finally {
             isDiscussing = false;
@@ -542,16 +560,14 @@
         const newQuestion = inputBox.value.trim();
         if (!newQuestion) return;
         if (fullHistory.length === 0) {
-            // 无历史，当作首次提问
             await startDiscussion(newQuestion, null);
         } else {
-            // 传递当前 fullHistory（不含即将发送的新问题）
             await startDiscussion(newQuestion, fullHistory);
         }
         inputBox.value = '';
     }
 
-    // 终止当前辩论（调用后端终止）
+    // 终止当前辩论
     async function terminateCurrentDebate() {
         if (!currentSessionId) {
             updateStatus('没有活跃辩论');
@@ -562,7 +578,7 @@
             const response = await fetch(url, { method: 'POST' });
             if (response.ok) {
                 updateStatus('已发送终止请求，辩论将停止');
-                appendMessageToUI('system_summary', '🛑 用户手动终止辩论');
+                appendMessageToUI('system_summary', '🛑 用户手动终止辩论', false);
             } else {
                 updateStatus('终止失败');
             }
@@ -572,7 +588,7 @@
         }
     }
 
-    // 重置对话（清空历史，清空界面）—— 不清除存储中的其他会话
+    // 重置对话（清空历史，清空界面）
     function resetConversation() {
         if (isDiscussing) {
             updateStatus('请先终止当前辩论再清空');
