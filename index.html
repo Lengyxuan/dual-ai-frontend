@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI智囊团 </title>
+    <title>三AI智囊团 · 连续对话版</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -426,7 +426,7 @@
         autoSave(); // 每次渲染后保存
     }
 
-    // 追加单条消息（用于实时反馈，例如发送问题后立即显示用户消息）
+    // 追加单条消息（仅用于总结或错误提示，不用于用户消息，因为用户消息会由后端统一渲染）
     function appendMessageToUI(role, content) {
         const el = createMessageElement(role, content);
         messagesContainer.appendChild(el);
@@ -482,7 +482,7 @@
         }
     }
 
-    // 开始辩论（首次 或 继续）
+    // 🔧 修复：开始辩论（首次 或 继续）
     async function startDiscussion(question, previousHistory = null) {
         if (!question.trim()) return;
         // 检查API Key
@@ -495,19 +495,13 @@
         isDiscussing = true;
         updateUIForDebateStart();
 
-        // 关键修复：如果是继续对话（previousHistory存在），先清空UI并渲染旧历史，避免重复显示
-        if (previousHistory) {
-            // 使用传入的历史（不含当前新问题）重新渲染界面
-            fullHistory = [...previousHistory]; // 临时恢复旧历史
-            renderFullConversation();            // 显示旧对话
-        } else {
-            // 全新对话：清空历史和界面
+        // 如果是全新对话，清空历史和界面
+        if (!previousHistory) {
             fullHistory = [];
             clearMessagesUI();
+            // 注意：不预先添加用户消息，等待后端返回后统一渲染（但为了即时反馈，可以加一个临时的“发送中”提示，但这里简化）
         }
-
-        // 添加用户消息到界面和历史（注意：此时 fullHistory 已包含旧历史或为空）
-        appendMessageToUI('user', question);
+        // 如果是继续对话，不清空界面，也不预先添加用户消息，等待后端返回后整体刷新
 
         const payload = {
             question: question,
@@ -515,7 +509,7 @@
             apiKeys: API_KEYS
         };
         if (previousHistory) {
-            payload.history = previousHistory;   // 传递完整历史（不含当前新问题）
+            payload.history = previousHistory;
         }
 
         try {
@@ -523,7 +517,6 @@
             currentSessionId = result.sessionId;
 
             if (result.history) {
-                // 后端返回的 history 已包含旧历史 + 新问题 + 所有辩论内容
                 fullHistory = result.history;
                 renderFullConversation();
             }
@@ -552,7 +545,7 @@
             // 无历史，当作首次提问
             await startDiscussion(newQuestion, null);
         } else {
-            // 传递当前 fullHistory（不含即将添加的新问题）
+            // 传递当前 fullHistory（不含即将发送的新问题）
             await startDiscussion(newQuestion, fullHistory);
         }
         inputBox.value = '';
@@ -589,12 +582,10 @@
         currentSessionId = null;
         clearMessagesUI();
         updateStatus('对话已清空');
-        // 不自动保存空历史，但如果有旧的 session 存储，这里不删除，只是清空当前显示
-        // 刷新侧边栏高亮（取消激活状态）
         renderHistoryList();
     }
 
-    // 新建对话：完全重置，类似于重置但更明确
+    // 新建对话：完全重置
     function newConversation() {
         if (isDiscussing) {
             updateStatus('请先终止当前辩论再新建对话');
@@ -604,7 +595,7 @@
         currentSessionId = null;
         clearMessagesUI();
         updateStatus('已创建新对话');
-        renderHistoryList(); // 取消侧边栏激活状态
+        renderHistoryList();
     }
 
     // ======================= UI状态控制 =======================
